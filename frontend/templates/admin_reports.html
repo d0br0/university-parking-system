@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+
+{% block title %}Отчёты — Админ-панель{% endblock %}
+
+{% block content %}
+<div class="admin-reports-page" x-data="adminReports">
+    <div class="page-header">
+        <h1 class="page-title">
+            <span class="material-icons">assessment</span>
+            Отчёты и аналитика
+        </h1>
+        <p class="page-subtitle">Детальная статистика по парковочным сессиям и выручке</p>
+    </div>
+
+    <!-- Навигация табов -->
+    <div class="tabs-nav">
+        <button 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'overview' }"
+            @click="activeTab = 'overview'"
+        >
+            <span class="material-icons">dashboard</span>
+            Обзор
+        </button>
+        <button 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'sessions' }"
+            @click="activeTab = 'sessions'"
+        >
+            <span class="material-icons">history</span>
+            Сессии
+        </button>
+        <button 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'revenue' }"
+            @click="activeTab = 'revenue'"
+        >
+            <span class="material-icons">payments</span>
+            Выручка
+        </button>
+    </div>
+
+    <!-- Таб: Обзор -->
+    <div x-show="activeTab === 'overview'" class="tab-content">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <span class="material-icons">today</span>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Выручка за сегодня</span>
+                    <span class="stat-value" x-text="`${overview.revenue?.today || 0} ₽`"></span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <span class="material-icons">calendar_month</span>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Выручка за месяц</span>
+                    <span class="stat-value" x-text="`${overview.revenue?.month || 0} ₽`"></span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <span class="material-icons">local_parking</span>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Активных сессий</span>
+                    <span class="stat-value" x-text="overview.sessions?.active_now || 0"></span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon bg-info">
+                    <span class="material-icons">people</span>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Всего пользователей</span>
+                    <span class="stat-value" x-text="overview.users?.total || 0"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Дополнительная статистика -->
+        <div class="dashboard-grid" style="margin-top: 2rem;">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <span class="material-icons">trending_up</span>
+                    <h2>Статистика сессий</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat-row">
+                        <span>Сессий за сегодня:</span>
+                        <strong x-text="overview.sessions?.today || 0"></strong>
+                    </div>
+                    <div class="stat-row">
+                        <span>Средняя длительность:</span>
+                        <strong x-text="`${Math.round(overview.statistics?.avg_session_duration_minutes || 0)} мин`"></strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <span class="material-icons">payments</span>
+                    <h2>Финансы</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stat-row">
+                        <span>Выручка за неделю:</span>
+                        <strong x-text="`${overview.revenue?.week || 0} ₽`"></strong>
+                    </div>
+                    <div class="stat-row">
+                        <span>Средний чек:</span>
+                        <strong x-text="`${Math.round(overview.revenue?.month && overview.sessions?.today ? (overview.revenue.month / 30) : 0)} ₽`"></strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Таб: Сессии -->
+    <div x-show="activeTab === 'sessions'" class="tab-content">
+        <div class="filters-card">
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label class="filter-label">С</label>
+                    <input type="date" x-model="sessionFilters.date_from" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">По</label>
+                    <input type="date" x-model="sessionFilters.date_to" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Статус</label>
+                    <select x-model="sessionFilters.status" class="filter-input">
+                        <option value="">Все</option>
+                        <option value="closed">Завершена</option>
+                        <option value="paid">Оплачена</option>
+                        <option value="pending">В процессе</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button @click="loadSessions()" class="btn btn-primary btn-sm">
+                        <span class="material-icons">search</span>
+                        Применить
+                    </button>
+                    <button @click="resetSessionFilters()" class="btn btn-outline btn-sm">
+                        Сбросить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Экспорт -->
+        <div class="export-bar">
+            <span class="export-label">Экспорт:</span>
+            <button @click="exportSessions('csv')" class="btn btn-outline btn-sm">
+                <span class="material-icons">download</span>
+                CSV
+            </button>
+            <button @click="exportSessions('json')" class="btn btn-outline btn-sm">
+                <span class="material-icons">code</span>
+                JSON
+            </button>
+        </div>
+
+        <!-- Таблица сессий -->
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Пользователь</th>
+                        <th>Автомобиль</th>
+                        <th>Въезд</th>
+                        <th>Выезд</th>
+                        <th>Длительность</th>
+                        <th>Стоимость</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="session in sessions" :key="session.id">
+                        <tr>
+                            <td x-text="session.id.substring(0, 8) + '...'"></td>
+                            <td x-text="session.user?.full_name || session.user?.email"></td>
+                            <td>
+                                <span class="license-plate" x-text="session.vehicle?.plate_number"></span>
+                            </td>
+                            <td x-text="formatDateTime(session.entry_time)"></td>
+                            <td x-text="session.exit_time ? formatDateTime(session.exit_time) : '—'"></td>
+                            <td x-text="formatDuration(session.duration_minutes)"></td>
+                            <td class="cost" x-text="`${session.total_cost} ₽`"></td>
+                            <td>
+                                <span class="badge" :class="getStatusClass(session.status)" x-text="getStatusLabel(session.status)"></span>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Пагинация -->
+        <div class="pagination">
+            <button @click="goToPage(current_page - 1)" :disabled="current_page === 1" class="btn btn-outline btn-sm">
+                <span class="material-icons">chevron_left</span>
+            </button>
+            <span class="page-info">Страница <span x-text="current_page"></span> из <span x-text="total_pages"></span></span>
+            <button @click="goToPage(current_page + 1)" :disabled="current_page === total_pages" class="btn btn-outline btn-sm">
+                <span class="material-icons">chevron_right</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Таб: Выручка -->
+    <div x-show="activeTab === 'revenue'" class="tab-content">
+        <div class="filters-card">
+            <div class="filters-row">
+                <div class="filter-group">
+                    <label class="filter-label">С</label>
+                    <input type="date" x-model="revenueFilters.date_from" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">По</label>
+                    <input type="date" x-model="revenueFilters.date_to" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Группировка</label>
+                    <select x-model="revenueFilters.group_by" class="filter-input" @change="loadRevenue()">
+                        <option value="day">По дням</option>
+                        <option value="week">По неделям</option>
+                        <option value="month">По месяцам</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button @click="loadRevenue()" class="btn btn-primary btn-sm">
+                        <span class="material-icons">refresh</span>
+                        Обновить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Сводка -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <span class="material-icons">payments</span>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Общая выручка</span>
+                    <span class="stat-value" x-text="`${revenueData?.summary?.total_revenue || 0} ₽`"></span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <span class="material-icons">local_parking</span>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Всего сессий</span>
+                    <span class="stat-value" x-text="revenueData?.summary?.total_sessions || 0"></span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <span class="material-icons">receipt</span>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Средний чек</span>
+                    <span class="stat-value" x-text="`${revenueData?.summary?.avg_session_cost || 0} ₽`"></span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon bg-info">
+                    <span class="material-icons">schedule</span>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-label">Среднее время</span>
+                    <span class="stat-value" x-text="`${Math.round(revenueData?.summary?.avg_duration_hours || 0)} ч`"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица периодов -->
+        <div class="dashboard-card" style="margin-top: 2rem;">
+            <div class="card-header">
+                <span class="material-icons">table_chart</span>
+                <h2>Детализация по периодам</h2>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Период</th>
+                                <th>Количество сессий</th>
+                                <th>Общая выручка</th>
+                                <th>Средний чек</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="period in revenueData?.periods || []" :key="period.period">
+                                <tr>
+                                    <td x-text="formatPeriod(period.period, revenueFilters.group_by)"></td>
+                                    <td x-text="period.session_count"></td>
+                                    <td class="cost" x-text="`${period.total_revenue} ₽`"></td>
+                                    <td x-text="`${period.avg_cost} ₽`"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('adminReports', () => ({
+        activeTab: 'overview',
+        
+        // Данные
+        overview: {},
+        sessions: [],
+        revenueData: {},
+        
+        // Фильтры
+        sessionFilters: {
+            date_from: '',
+            date_to: '',
+            status: ''
+        },
+        revenueFilters: {
+            date_from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            date_to: new Date().toISOString().split('T')[0],
+            group_by: 'day'
+        },
+        
+        // Пагинация
+        current_page: 1,
+        per_page: 20,
+        total: 0,
+        total_pages: 0,
+
+        init() {
+            this.loadOverview();
+            this.loadRevenue();
+        },
+
+        async loadOverview() {
+            try {
+                const response = await fetch('/api/admin/reports/overview');
+                if (response.ok) {
+                    this.overview = await response.json();
+                }
+            } catch (e) {
+                console.error('Ошибка загрузки обзора:', e);
+            }
+        },
+
+        async loadSessions() {
+            try {
+                const params = new URLSearchParams({
+                    page: this.current_page,
+                    per_page: this.per_page
+                });
+
+                if (this.sessionFilters.date_from) {
+                    params.append('date_from', new Date(this.sessionFilters.date_from).toISOString());
+                }
+                if (this.sessionFilters.date_to) {
+                    params.append('date_to', new Date(this.sessionFilters.date_to).toISOString());
+                }
+                if (this.sessionFilters.status) {
+                    params.append('status', this.sessionFilters.status);
+                }
+
+                const response = await fetch(`/api/admin/reports/sessions?${params}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    this.sessions = data.items;
+                    this.total = data.total;
+                    this.total_pages = data.total_pages;
+                }
+            } catch (e) {
+                console.error('Ошибка загрузки сессий:', e);
+            }
+        },
+
+        async loadRevenue() {
+            try {
+                const params = new URLSearchParams();
+
+                if (this.revenueFilters.date_from) {
+                    params.append('date_from', new Date(this.revenueFilters.date_from).toISOString());
+                }
+                if (this.revenueFilters.date_to) {
+                    params.append('date_to', new Date(this.revenueFilters.date_to).toISOString());
+                }
+                params.append('group_by', this.revenueFilters.group_by);
+
+                const response = await fetch(`/api/admin/reports/revenue?${params}`);
+                if (response.ok) {
+                    this.revenueData = await response.json();
+                }
+            } catch (e) {
+                console.error('Ошибка загрузки выручки:', e);
+            }
+        },
+
+        resetSessionFilters() {
+            this.sessionFilters = {
+                date_from: '',
+                date_to: '',
+                status: ''
+            };
+            this.current_page = 1;
+            this.loadSessions();
+        },
+
+        goToPage(page) {
+            if (page >= 1 && page <= this.total_pages) {
+                this.current_page = page;
+                this.loadSessions();
+            }
+        },
+
+        async exportSessions(format) {
+            const params = new URLSearchParams({
+                date_from: this.sessionFilters.date_from || '',
+                date_to: this.sessionFilters.date_to || '',
+                status: this.sessionFilters.status || ''
+            });
+
+            try {
+                const response = await fetch(`/api/admin/reports/sessions/export?${params}&format=${format}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `sessions_${new Date().toISOString().split('T')[0]}.${format}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    if (typeof toast !== 'undefined') {
+                        toast.success('Файл успешно скачан');
+                    }
+                }
+            } catch (e) {
+                console.error('Ошибка экспорта:', e);
+                if (typeof toast !== 'undefined') {
+                    toast.error('Ошибка при экспорте');
+                }
+            }
+        },
+
+        formatPeriod(period, groupBy) {
+            if (groupBy === 'day') {
+                const parts = period.split('-');
+                return `${parts[2]}.${parts[1]}.${parts[0]}`;
+            } else if (groupBy === 'week') {
+                return `Неделя ${period}`;
+            } else if (groupBy === 'month') {
+                const parts = period.split('-');
+                const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+                return `${months[parseInt(parts[1]) - 1]} ${parts[0]}`;
+            }
+            return period;
+        },
+
+        formatDate(dateStr) {
+            if (!dateStr) return '—';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        },
+
+        formatTime(dateStr) {
+            if (!dateStr) return '—';
+            const date = new Date(dateStr);
+            return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        },
+
+        formatDateTime(dateStr) {
+            if (!dateStr) return '—';
+            const date = new Date(dateStr);
+            return date.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        },
+
+        formatDuration(minutes) {
+            if (!minutes || minutes <= 0) return '—';
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            if (hours > 0) {
+                return `${hours} ч ${mins > 0 ? mins + ' мин' : ''}`;
+            }
+            return `${mins} мин`;
+        },
+
+        getStatusClass(status) {
+            const classes = { 'closed': 'badge-success', 'paid': 'badge-success', 'pending': 'badge-warning', 'failed': 'badge-error' };
+            return classes[status] || 'badge-secondary';
+        },
+
+        getStatusLabel(status) {
+            const labels = { 'closed': 'Завершена', 'paid': 'Оплачена', 'pending': 'В процессе', 'failed': 'Ошибка' };
+            return labels[status] || status;
+        }
+    }));
+});
+</script>
+{% endblock %}

@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}Активная парковка — Парковка Университета{% endblock %}
+
+{% block content %}
+<div x-data="activeSession" x-init="init()">
+    <div class="session-header session-header-active">
+        <h1 class="page-title">
+            <span class="material-icons">timer</span>
+            Активная парковка
+        </h1>
+        <p class="page-subtitle">
+            Сессия #{{ session_id }} • <span x-text="session.zone_name || 'Зона не указана'"></span>
+        </p>
+        <div class="session-status-badge" :class="statusClass">
+            <span class="material-icons" x-text="statusIcon"></span>
+            <span x-text="statusText"></span>
+        </div>
+    </div>
+
+    <div class="session-grid">
+        <!-- Карточка таймера и стоимости -->
+        <div class="session-card session-card-primary">
+            <div class="card-header">
+                <span class="material-icons">schedule</span>
+                <h2>Таймер парковки</h2>
+            </div>
+            <div class="card-body">
+                <div class="timer-display" x-text="timerDisplay"></div>
+                <div class="timer-details">
+                    <div class="detail">
+                        <span class="material-icons">login</span>
+                        <div>
+                            <strong>Въезд</strong>
+                            <p x-text="formatTime(session.entry_time)"></p>
+                        </div>
+                    </div>
+                    <div class="detail">
+                        <span class="material-icons">logout</span>
+                        <div>
+                            <strong>Выезд</strong>
+                            <p x-text="session.exit_time ? formatTime(session.exit_time) : '—'"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Карточка стоимости -->
+        <div class="session-card session-card-warning">
+            <div class="card-header">
+                <span class="material-icons">attach_money</span>
+                <h2>Стоимость</h2>
+            </div>
+            <div class="card-body">
+                <div class="cost-display">
+                    <div class="cost-item">
+                        <span>Текущая стоимость</span>
+                        <strong class="cost-amount" x-text="`${session.cost ?? 0} ₽`"></strong>
+                    </div>
+                    <div class="cost-item">
+                        <span>Тариф</span>
+                        <strong x-text="`${tariff.price_per_hour || 150} ₽/час`"></strong>
+                    </div>
+                    <div class="cost-item">
+                        <span>Дневной лимит</span>
+                        <strong x-text="`${tariff.daily_cap || 1200} ₽`"></strong>
+                    </div>
+                </div>
+                <div class="cost-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" :style="`width: ${costProgress}%`"></div>
+                    </div>
+                    <small x-text="`Использовано ${costProgress}% дневного лимита`"></small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Информация об автомобиле -->
+        <div class="session-card">
+            <div class="card-header">
+                <span class="material-icons">directions_car</span>
+                <h2>Автомобиль</h2>
+            </div>
+            <div class="card-body">
+                <div class="vehicle-info">
+                    <span class="material-icons vehicle-icon">directions_car</span>
+                    <div>
+                        <strong x-text="session.vehicle_plate || '—'"></strong>
+                        <p x-text="session.vehicle_model || 'Модель не указана'"></p>
+                    </div>
+                </div>
+                <div class="vehicle-meta">
+                    <div class="meta-item">
+                        <span class="material-icons">color_lens</span>
+                        <span x-text="session.vehicle_color || '—'"></span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="material-icons">badge</span>
+                        <span x-text="session.vehicle_id ? `ID: ${session.vehicle_id}` : '—'"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Действия -->
+        <div class="session-card session-card-actions">
+            <div class="card-header">
+                <span class="material-icons">touch_app</span>
+                <h2>Действия</h2>
+            </div>
+            <div class="card-body">
+                <p>Управляйте текущей сессией парковки:</p>
+                <div class="action-buttons">
+                    <button
+                        @click="initiatePayment"
+                        :disabled="paymentLoading || session.status === 'paid' || session.status === 'closed'"
+                        class="btn btn-primary btn-block"
+                    >
+                        <span class="material-icons">payment</span>
+                        <template x-if="paymentLoading">
+                            <span class="spinner"></span>
+                        </template>
+                        <template x-if="!paymentLoading">
+                            <span>Оплатить</span>
+                        </template>
+                    </button>
+                    <button
+                        @click="endSession"
+                        :disabled="ending || session.status === 'closed'"
+                        class="btn btn-warning btn-block"
+                    >
+                        <span x-show="ending" class="spinner"></span>
+                        <span x-text="ending ? 'Завершение...' : 'Завершить парковку'"></span>
+                    </button>
+                    <a href="/dashboard" class="btn btn-outline btn-block">
+                        <span class="material-icons">arrow_back</span>
+                        Назад в панель
+                    </a>
+                </div>
+                <div class="action-hint">
+                    <span class="material-icons">info</span>
+                    <p>
+                        <strong>Внимание:</strong> Завершение сессии остановит таймер и зафиксирует итоговую стоимость.
+                        Оплата может быть произведена до или после завершения.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Детали сессии -->
+    <div class="session-details">
+        <h3 class="section-title">
+            <span class="material-icons">list_alt</span>
+            Детали сессии
+        </h3>
+        <div class="details-grid">
+            <div class="detail-card">
+                <span class="material-icons">location_on</span>
+                <strong>Зона</strong>
+                <p x-text="session.zone_name || '—'"></p>
+            </div>
+            <div class="detail-card">
+                <span class="material-icons">confirmation_number</span>
+                <strong>ID сессии</strong>
+                <p>{{ session_id }}</p>
+            </div>
+            <div class="detail-card">
+                <span class="material-icons">calendar_today</span>
+                <strong>Дата начала</strong>
+                <p x-text="formatDate(session.entry_time)"></p>
+            </div>
+            <div class="detail-card">
+                <span class="material-icons">update</span>
+                <strong>Длительность</strong>
+                <p x-text="session.duration_display || '—'"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно оплаты -->
+<div x-show="showPaymentModal" class="modal-overlay" @click.self="showPaymentModal = false">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Подтверждение оплаты</h3>
+            <button @click="showPaymentModal = false" class="modal-close">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p>Сумма к оплате: <strong x-text="`${paymentAmount} ₽`"></strong></p>
+            <p>Сессия: #{{ session_id }}</p>
+            <p>После подтверждения будет выполнен mock-платёж.</p>
+        </div>
+        <div class="modal-footer">
+            <button @click="showPaymentModal = false" class="btn btn-outline">Отмена</button>
+            <button @click="confirmPayment" :disabled="confirmLoading" class="btn btn-primary">
+                <template x-if="confirmLoading">
+                    <span class="spinner"></span>
+                </template>
+                <template x-if="!confirmLoading">
+                    <span>Подтвердить оплату</span>
+                </template>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('activeSession', () => ({
+            session: {},
+            tariff: { price_per_hour: 150, daily_cap: 1200 },
+            timerInterval: null,
+            ending: false,
+            validUntil: '',
+            paymentLoading: false,
+            confirmLoading: false,
+            showPaymentModal: false,
+            paymentAmount: 0,
+            paymentId: null,
+
+            init() {
+                this.loadSession();
+                this.startTimer();
+                this.calculateValidUntil();
+            },
+
+            async loadSession() {
+                try {
+                    const response = await fetch(`/api/sessions/{{ session_id }}`);
+                    if (response.ok) {
+                        this.session = await response.json();
+                        // Загружаем тариф (можно отдельным запросом, но пока заглушка)
+                        if (this.session.tariff) {
+                            this.tariff = this.session.tariff;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки сессии:', e);
+                }
+            },
+
+            startTimer() {
+                this.timerInterval = setInterval(() => {
+                    if (!this.session.entry_time) return;
+                    const started = new Date(this.session.entry_time);
+                    const now = new Date();
+                    const diff = Math.floor((now - started) / 1000);
+                    const hours = Math.floor(diff / 3600);
+                    const minutes = Math.floor((diff % 3600) / 60);
+                    const seconds = diff % 60;
+                    this.session.duration_display = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }, 1000);
+            },
+
+            calculateValidUntil() {
+                const now = new Date();
+                now.setHours(now.getHours() + 2);
+                this.validUntil = now.toLocaleString('ru-RU');
+            },
+
+            get timerDisplay() {
+                return this.session.duration_display || '00:00:00';
+            },
+
+            get statusClass() {
+                const status = this.session.status;
+                if (status === 'pending') return 'status-pending';
+                if (status === 'paid') return 'status-paid';
+                if (status === 'closed') return 'status-closed';
+                return 'status-unknown';
+            },
+
+            get statusIcon() {
+                const status = this.session.status;
+                if (status === 'pending') return 'pending';
+                if (status === 'paid') return 'check_circle';
+                if (status === 'closed') return 'stop_circle';
+                return 'help';
+            },
+
+            get statusText() {
+                const status = this.session.status;
+                const map = {
+                    pending: 'Ожидает оплаты',
+                    paid: 'Оплачено',
+                    closed: 'Завершено',
+                };
+                return map[status] || 'Неизвестно';
+            },
+
+            get costProgress() {
+                const cost = this.session.cost || 0;
+                const cap = this.tariff.daily_cap || 1200;
+                const progress = (cost / cap) * 100;
+                return Math.min(100, Math.round(progress));
+            },
+
+            formatTime(iso) {
+                if (!iso) return '—';
+                return new Date(iso).toLocaleTimeString('ru-RU', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            },
+
+            formatDate(iso) {
+                if (!iso) return '—';
+                return new Date(iso).toLocaleDateString('ru-RU', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+            },
+
+            async initiatePayment() {
+                this.paymentLoading = true;
+                try {
+                    const response = await fetch(`/api/payments/init/{{ session_id }}`);
+                    if (!response.ok) {
+                        const error = await response.text();
+                        throw new Error(error);
+                    }
+                    const data = await response.json();
+                    this.paymentAmount = data.amount;
+                    this.paymentId = data.payment_id;
+                    this.showPaymentModal = true;
+                } catch (error) {
+                    console.error('Ошибка инициализации платежа:', error);
+                    if (typeof Toast !== 'undefined') {
+                        Toast.error('Ошибка: ' + error.message);
+                    }
+                } finally {
+                    this.paymentLoading = false;
+                }
+            },
+
+            async confirmPayment() {
+                this.confirmLoading = true;
+                try {
+                    const response = await fetch(`/api/payments/callback/${this.paymentId}`);
+                    if (!response.ok) {
+                        const error = await response.text();
+                        throw new Error(error);
+                    }
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const data = await response.json();
+                        if (typeof Toast !== 'undefined') {
+                            Toast.success('Оплата успешна!');
+                        }
+                        this.showPaymentModal = false;
+                        this.loadSession();
+                    } else {
+                        window.location.href = `/session/{{ session_id }}?paid=true`;
+                    }
+                } catch (error) {
+                    console.error('Ошибка подтверждения платежа:', error);
+                    if (typeof Toast !== 'undefined') {
+                        Toast.error('Ошибка: ' + error.message);
+                    }
+                } finally {
+                    this.confirmLoading = false;
+                }
+            },
+
+            async endSession() {
+                if (this.ending) return;
+                this.ending = true;
+                try {
+                    const response = await fetch(`/api/sessions/{{ session_id }}/end`, {
+                        method: 'POST'
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (typeof Toast !== 'undefined') {
+                            Toast.success(`Сессия завершена. Итоговая стоимость: ${data.cost} ₽`);
+                        }
+                        this.loadSession();
+                    } else {
+                        const err = await response.json();
+                        if (typeof Toast !== 'undefined') {
+                            Toast.error(err.detail || 'Ошибка при завершении сессии');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Ошибка:', e);
+                    if (typeof Toast !== 'undefined') {
+                        Toast.error('Ошибка соединения с сервером');
+                    }
+                } finally {
+                    this.ending = false;
+                }
+            }
+        }));
+    });
+</script>
+{% endblock %}

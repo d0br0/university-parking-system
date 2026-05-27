@@ -1,0 +1,53 @@
+{% macro tariff_row(tariff) %}
+<tr>
+    <td>{{ tariff.id }}</td>
+    <td>{{ tariff.name }}</td>
+    <td>{{ tariff.price_per_hour }} ₽</td>
+    <td>{{ tariff.daily_cap }} ₽</td>
+</tr>
+{% endmacro %}
+
+{% macro session_row(session) %}
+<tr>
+    <td>{{ session.id|string|truncate(8, True, '') }}...</td>
+    <td>{{ session.user.email }}</td>
+    <td>{{ session.vehicle.license_plate }}</td>
+    <td>{{ session.entry_time.strftime('%d.%m.%Y %H:%M') }}</td>
+    <td>{{ session.exit_time.strftime('%d.%m.%Y %H:%M') if session.exit_time else '—' }}</td>
+    <td>
+        <span class="badge badge-{{ session.status }}">
+            {{ session.status }}
+        </span>
+    </td>
+    <td>{{ session.cost }} ₽</td>
+</tr>
+{% endmacro %}
+
+{% macro stats_fragment(stats) %}
+<div class="stat-item">
+    <div class="stat-label">Общая выручка</div>
+    <div class="stat-value">{{ stats.total_revenue }} ₽</div>
+</div>
+<div class="stat-item">
+    <div class="stat-label">Активные сессии</div>
+    <div class="stat-value">{{ stats.active_sessions }}</div>
+</div>
+<div class="stat-item">
+    <div class="stat-label">Посещения сегодня</div>
+    <div class="stat-value">{{ stats.today_visits }}</div>
+</div>
+{% endmacro %}
+
+{% if type == 'tariffs' %}
+    {% for tariff in items %}
+        {{ tariff_row(tariff) }}
+    {% endfor %}
+{% elif type == 'tariff_single' %}
+    {{ tariff_row(item) }}
+{% elif type == 'sessions' %}
+    {% for session in items %}
+        {{ session_row(session) }}
+    {% endfor %}
+{% elif type == 'stats' %}
+    {{ stats_fragment(stats) }}
+{% endif %}

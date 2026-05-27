@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}Управление зонами — Админ-панель{% endblock %}
+
+{% block content %}
+<div class="admin-zones-page" x-data="adminZones">
+    <div class="page-header">
+        <h1 class="page-title">
+            <span class="material-icons">map</span>
+            Управление парковочными зонами
+        </h1>
+        <button @click="openCreateModal()" class="btn btn-primary">
+            <span class="material-icons">add</span>
+            Добавить зону
+        </button>
+    </div>
+
+    <!-- Список зон -->
+    <div class="zones-grid">
+        <template x-for="zone in zones" :key="zone.id">
+            <div class="zone-card" :class="{ 'inactive': !zone.is_active }">
+                <div class="zone-header">
+                    <h3 x-text="zone.name"></h3>
+                    <span class="badge" :class="zone.is_active ? 'badge-success' : 'badge-secondary'" 
+                          x-text="zone.is_active ? 'Активна' : 'Неактивна'"></span>
+                </div>
+                
+                <div class="zone-body">
+                    <p x-show="zone.description" x-text="zone.description" class="zone-description"></p>
+                    <p x-show="zone.location" class="zone-location">
+                        <span class="material-icons">location_on</span>
+                        <span x-text="zone.location"></span>
+                    </p>
+                    
+                    <div class="zone-stats">
+                        <div class="stat">
+                            <span class="stat-label">Мест:</span>
+                            <span class="stat-value" x-text="zone.total_spots || 0"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="zone-actions">
+                    <button @click="openEditModal(zone)" class="btn btn-outline btn-sm">
+                        <span class="material-icons">edit</span>
+                        Редактировать
+                    </button>
+                    <button @click="toggleActive(zone)" class="btn btn-outline btn-sm" 
+                            :class="zone.is_active ? 'btn-warning' : 'btn-success'">
+                        <span class="material-icons" x-text="zone.is_active ? 'pause' : 'play_arrow'"></span>
+                        <span x-text="zone.is_active ? 'Деактивировать' : 'Активировать'"></span>
+                    </button>
+                    <button @click="deleteZone(zone.id)" class="btn btn-danger btn-sm">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Модальное окно создания/редактирования -->
+    <div x-show="modalOpen" class="modal-overlay" @click.self="closeModal()" x-cloak>
+        <div class="modal">
+            <div class="modal-header">
+                <h3 x-text="isEditing ? 'Редактировать зону' : 'Добавить зону'"></h3>
+                <button @click="closeModal()" class="btn-icon">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form @submit.prevent="saveZone()">
+                    <div class="form-group">
+                        <label class="form-label">Название *</label>
+                        <input type="text" x-model="formData.name" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Описание</label>
+                        <textarea x-model="formData.description" class="form-input" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Адрес / Локация</label>
+                        <input type="text" x-model="formData.location" class="form-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Количество мест</label>
+                        <input type="number" x-model="formData.total_spots" class="form-input" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-check">
+                            <input type="checkbox" x-model="formData.is_active" class="form-check-input">
+                            <span class="form-check-label">Активна</span>
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button @click="closeModal()" class="btn btn-outline">Отмена</button>
+                <button @click="saveZone()" class="btn btn-primary" :disabled="saving">
+                    <span x-show="saving" class="spinner spinner-sm"></span>
+                    <span x-show="!saving" x-text="isEditing ? 'Сохранить' : 'Создать'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('adminZones', () => ({
+        zones: [],
+        loading: false,
+        modalOpen: false,
+        isEditing: false,
+        saving: false,
+        editId: null,
+        
+        formData: {
+            name: '',
+            description: '',
+            location: '',
+            total_spots: 0,
+            is_active: true,
+            tariff_id: null
+        },
+
+        init() {
+            this.loadZones();
+        },
+
+        async loadZones() {
+            this.loading = true;
+            try {
+                const response = await fetch('/api/zones?active_only=false');
+                if (response.ok) {
+                    this.zones = await response.json();
+                }
+            } catch (e) {
+                console.error('Ошибка загрузки зон:', e);
+                if (typeof toast !== 'undefined') {
+                    toast.error('Ошибка загрузки зон');
+                }
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        openCreateModal() {
+            this.isEditing = false;
+            this.editId = null;
+            this.formData = {
+                name: '',
+                description: '',
+                location: '',
+                total_spots: 0,
+                is_active: true,
+                tariff_id: null
+            };
+            this.modalOpen = true;
+        },
+
+        openEditModal(zone) {
+            this.isEditing = true;
+            this.editId = zone.id;
+            this.formData = {
+                name: zone.name,
+                description: zone.description || '',
+                location: zone.location || '',
+                total_spots: zone.total_spots || 0,
+                is_active: zone.is_active,
+                tariff_id: zone.tariff_id
+            };
+            this.modalOpen = true;
+        },
+
+        closeModal() {
+            this.modalOpen = false;
+            this.editId = null;
+        },
+
+        async saveZone() {
+            if (!this.formData.name) {
+                if (typeof toast !== 'undefined') {
+                    toast.error('Введите название зоны');
+                }
+                return;
+            }
+
+            this.saving = true;
+            try {
+                const url = this.isEditing ? `/api/zones/${this.editId}` : '/api/zones/';
+                const method = this.isEditing ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.formData)
+                });
+
+                if (response.ok) {
+                    if (typeof toast !== 'undefined') {
+                        toast.success(this.isEditing ? 'Зона обновлена' : 'Зона создана');
+                    }
+                    this.closeModal();
+                    this.loadZones();
+                } else {
+                    const error = await response.json();
+                    if (typeof toast !== 'undefined') {
+                        toast.error(error.detail || 'Ошибка сохранения');
+                    }
+                }
+            } catch (e) {
+                console.error('Ошибка сохранения:', e);
+                if (typeof toast !== 'undefined') {
+                    toast.error('Ошибка сохранения');
+                }
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        async toggleActive(zone) {
+            try {
+                const response = await fetch(`/api/zones/${zone.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ is_active: !zone.is_active })
+                });
+
+                if (response.ok) {
+                    if (typeof toast !== 'undefined') {
+                        toast.success(zone.is_active ? 'Зона деактивирована' : 'Зона активирована');
+                    }
+                    this.loadZones();
+                }
+            } catch (e) {
+                console.error('Ошибка:', e);
+                if (typeof toast !== 'undefined') {
+                    toast.error('Ошибка изменения статуса');
+                }
+            }
+        },
+
+        async deleteZone(zoneId) {
+            if (!confirm('Удалить эту зону?')) return;
+
+            try {
+                const response = await fetch(`/api/zones/${zoneId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    if (typeof toast !== 'undefined') {
+                        toast.success('Зона удалена');
+                    }
+                    this.loadZones();
+                }
+            } catch (e) {
+                console.error('Ошибка удаления:', e);
+                if (typeof toast !== 'undefined') {
+                    toast.error('Ошибка удаления');
+                }
+            }
+        }
+    }));
+});
+</script>
+{% endblock %}

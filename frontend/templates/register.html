@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация — Парковка Университета{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">
+                <span class="material-icons">person_add</span>
+                Регистрация
+            </h1>
+            <p class="auth-subtitle">Создайте аккаунт для использования парковки</p>
+        </div>
+
+        <form
+            hx-post="/api/auth/register"
+            hx-swap="none"
+            hx-indicator="#register-indicator"
+            class="auth-form"
+        >
+            <div class="form-group">
+                <label for="email" class="form-label">
+                    <span class="material-icons">email</span>
+                    Email
+                </label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    placeholder="student@university.edu"
+                    class="form-input"
+                    autocomplete="email"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="phone" class="form-label">
+                    <span class="material-icons">phone</span>
+                    Телефон (необязательно)
+                </label>
+                <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    placeholder="+7 (999) 000-00-00"
+                    class="form-input"
+                    autocomplete="tel"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">
+                    <span class="material-icons">lock</span>
+                    Пароль
+                </label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                    minlength="6"
+                    placeholder="••••••••"
+                    class="form-input"
+                    autocomplete="new-password"
+                />
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-block">
+                    <span id="register-indicator" class="htmx-indicator">
+                        <span class="spinner"></span>
+                    </span>
+                    <span>Зарегистрироваться</span>
+                </button>
+            </div>
+
+            <div class="auth-footer">
+                <p class="text-sm">
+                    Уже есть аккаунт? <a href="/">Войти</a>
+                </p>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Обработка регистрации через HTMX
+    document.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.requestConfig.path === '/api/auth/register') {
+            if (event.detail.xhr.status === 201) {
+                if (typeof Toast !== 'undefined') {
+                    Toast.success('Регистрация успешна! Перенаправление...');
+                }
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+            }
+        }
+    });
+</script>
+{% endblock %}

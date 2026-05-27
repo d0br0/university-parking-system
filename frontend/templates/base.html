@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Парковка Университета{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/toast.css">
+    <link rel="stylesheet" href="/static/css/history.css">
+    <!-- CDN для HTMX 2.x -->
+    <script src="https://unpkg.com/htmx.org@2.0.0" integrity="sha384-wS5l5IKJBvK6sPTKa2WZ1js3d947pvWXbPJ1OmWfEuxLgeHcEbjUUA5i9V5ZkpCw" crossorigin="anonymous" defer></script>
+    <!-- CDN для Alpine.js 3.x - загружаем до использования -->
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <!-- Иконки Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🅿️</text></svg>">
+</head>
+<body class="bg-bg text-text" x-data="{ 
+        menuOpen: false, 
+        user: null,
+        init() {
+            // Загружаем данные пользователя из API
+            fetch('/api/auth/me', { credentials: 'include' })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => { this.user = data; })
+                .catch(() => { this.user = null; });
+        }
+    }">
+        <div class="container">
+            <div class="nav-content">
+                <a href="/" class="logo">
+                    <span class="material-icons">local_parking</span>
+                    <span>Университетская парковка</span>
+                </a>
+                <button class="menu-toggle" @click="menuOpen = !menuOpen" aria-label="Меню">
+                    <span class="material-icons">menu</span>
+                </button>
+                <div class="nav-links" :class="{ 'open': menuOpen }">
+                    <a href="/dashboard" class="nav-link">
+                        <span class="material-icons">dashboard</span>
+                        Панель
+                    </a>
+                    <a href="/history" class="nav-link">
+                        <span class="material-icons">history</span>
+                        История
+                    </a>
+                    <a href="/admin/reports" class="nav-link" x-show="user?.is_admin">
+                        <span class="material-icons">assessment</span>
+                        Отчёты
+                    </a>
+                    <a href="/api/admin/page" class="nav-link" x-show="user?.is_admin">
+                        <span class="material-icons">qr_code_2</span>
+                        QR-коды
+                    </a>
+                    <form method="POST" action="/auth/logout" class="inline">
+                        <button type="submit" class="nav-link logout-btn">
+                            <span class="material-icons">logout</span>
+                            Выйти
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>© 2026 Университетская система платной парковки. Все права защищены.</p>
+            <p class="footer-links">
+                <a href="/docs" target="_blank">API Документация</a> |
+                <a href="/health" target="_blank">Статус системы</a>
+            </p>
+        </div>
+    </footer>
+
+    <script src="/static/js/toast.js"></script>
+    <script src="/static/js/app.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

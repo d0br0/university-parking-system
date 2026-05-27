@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Панель управления — Парковка Университета{% endblock %}
+
+{% block content %}
+<div x-data="dashboard">
+    <div class="dashboard-header">
+        <h1 class="page-title">
+            <span class="material-icons">dashboard</span>
+            Панель управления
+        </h1>
+        <p class="page-subtitle" x-text="`Добро пожаловать, ${user?.email || 'гость'}!`"></p>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- Карточка пользователя -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <span class="material-icons">person</span>
+                <h2>Профиль</h2>
+            </div>
+            <div class="card-body">
+                <p><strong>Email:</strong> <span x-text="user?.email || '—'"></span></p>
+                <p><strong>Телефон:</strong> <span x-text="user?.phone || '—'"></span></p>
+                <p><strong>Баланс:</strong> <span class="balance" x-text="`${user?.balance ?? 0} ₽`"></span></p>
+            </div>
+            <div class="card-footer">
+                <a href="/profile" class="btn btn-outline">Редактировать</a>
+            </div>
+        </div>
+
+        <!-- Мои автомобили -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <span class="material-icons">directions_car</span>
+                <h2>Мои автомобили</h2>
+            </div>
+            <div class="card-body">
+                <div x-show="vehicles.length === 0" class="empty-state">
+                    <span class="material-icons">car_rental</span>
+                    <p>У вас нет добавленных автомобилей</p>
+                </div>
+                <ul class="list" x-show="vehicles.length > 0">
+                    <template x-for="vehicle in vehicles" :key="vehicle.id">
+                        <li class="list-item">
+                            <span class="material-icons">directions_car</span>
+                            <div>
+                                <strong x-text="vehicle.license_plate"></strong>
+                                <small x-text="vehicle.model || 'Модель не указана'"></small>
+                            </div>
+                            <span class="badge" :class="vehicle.is_active ? 'badge-success' : 'badge-secondary'"
+                                  x-text="vehicle.is_active ? 'Активен' : 'Неактивен'"></span>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+            <div class="card-footer">
+                <button @click="showVehicleForm = !showVehicleForm" class="btn btn-primary">
+                    <span class="material-icons">add</span>
+                    Добавить авто
+                </button>
+            </div>
+        </div>
+
+        <!-- Активная сессия -->
+        <div class="dashboard-card" x-show="activeSession">
+            <div class="card-header card-header-warning">
+                <span class="material-icons">timer</span>
+                <h2>Активная парковка</h2>
+            </div>
+            <div class="card-body">
+                <p><strong>Зона:</strong> <span x-text="activeSession?.zone_name || '—'"></span></p>
+                <p><strong>Начало:</strong> <span x-text="formatTime(activeSession?.started_at)"></span></p>
+                <p><strong>Прошло:</strong> <span x-text="activeSession?.duration_display || '00:00:00'"></span></p>
+                <p><strong>Стоимость:</strong> <span x-text="`${activeSession?.current_cost ?? 0} ₽`"></span></p>
+            </div>
+            <div class="card-footer">
+                <a :href="activeSession ? `/session/${activeSession.id}` : '#'" class="btn btn-warning">
+                    <span class="material-icons">open_in_new</span>
+                    Управление
+                </a>
+            </div>
+        </div>
+
+        <!-- Быстрый старт -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <span class="material-icons">play_circle</span>
+                <h2>Быстрый старт парковки</h2>
+            </div>
+            <div class="card-body">
+                <p>Выберите зону, чтобы начать парковку вручную, или используйте QR‑код на парковке.</p>
+                <div class="zone-buttons">
+                    <a href="/session/start?zone=A" class="btn btn-outline">Зона A</a>
+                    <a href="/session/start?zone=B" class="btn btn-outline">Зона B</a>
+                    <a href="/session/start?zone=C" class="btn btn-outline">Зона C</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Форма добавления авто -->
+    <div x-show="showVehicleForm" class="modal-overlay" @click.self="showVehicleForm = false">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Добавить автомобиль</h3>
+                <button @click="showVehicleForm = false" class="btn-icon">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+            <form
+                @submit.prevent="addVehicle"
+                class="modal-body"
+            >
+                <div class="form-group">
+                    <label class="form-label">Госномер</label>
+                    <input type="text" name="license_plate" x-model="newVehicle.license_plate" class="form-input" placeholder="А123БВ777" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Марка/модель</label>
+                    <input type="text" name="model" x-model="newVehicle.model" class="form-input" placeholder="Toyota Camry" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Цвет</label>
+                    <input type="text" x-model="newVehicle.color" class="form-input" placeholder="Синий" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" @click="showVehicleForm = false" class="btn btn-outline">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- История сессий -->
+    <div class="section">
+        <h2 class="section-title">
+            <span class="material-icons">history</span>
+            История парковок
+        </h2>
+        
+        <div x-show="loadingHistory" class="loading-state">
+            <span class="spinner"></span> Загрузка истории...
+        </div>
+
+        <div x-show="!loadingHistory && sessions.length === 0" class="empty-state">
+            <p>У вас пока нет завершённых парковок</p>
+        </div>
+
+        <div x-show="!loadingHistory && sessions.length > 0" class="history-container">
+            <ul class="list">
+                <template x-for="session in sessions" :key="session.id">
+                    <li class="list-item">
+                        <div>
+                            <strong x-text="formatDate(session.entry_time)"></strong>
+                            <small x-text="session.vehicle.license_plate"></small>
+                        </div>
+                        <div class="text-right">
+                            <span class="cost" x-text="`${session.total_cost} ₽`"></span>
+                            <br>
+                            <small x-text="session.status"></small>
+                        </div>
+                    </li>
+                </template>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('dashboard', () => ({
+            user: null,
+            vehicles: [],
+            sessions: [],
+            activeSession: null,
+            loadingHistory: false,
+            showVehicleForm: false,
+            newVehicle: { license_plate: '', model: '', color: '' },
+
+            init() {
+                this.loadUser();
+                this.loadVehicles();
+                this.loadActiveSession();
+                this.loadHistory();
+            },
+
+            async loadUser() {
+                try {
+                    const response = await fetch('/api/auth/me');
+                    if (response.ok) {
+                        this.user = await response.json();
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки пользователя:', e);
+                }
+            },
+
+            async loadVehicles() {
+                try {
+                    const response = await fetch('/api/vehicles/');
+                    if (response.ok) {
+                        this.vehicles = await response.json();
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки автомобилей:', e);
+                }
+            },
+
+            async loadActiveSession() {
+                try {
+                    const response = await fetch('/api/sessions/active');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data && data.id) {
+                            this.activeSession = data;
+                            this.updateSessionTimer();
+                        }
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки активной сессии:', e);
+                }
+            },
+
+            async loadHistory() {
+                this.loadingHistory = true;
+                try {
+                    const response = await fetch('/api/sessions/history?per_page=5');
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.sessions = data.items;
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки истории:', e);
+                } finally {
+                    this.loadingHistory = false;
+                }
+            },
+
+            formatDate(iso) {
+                if (!iso) return '—';
+                return new Date(iso).toLocaleDateString('ru-RU');
+            },
+
+            updateSessionTimer() {
+                if (!this.activeSession) return;
+                const interval = setInterval(() => {
+                    if (!this.activeSession) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    const started = new Date(this.activeSession.started_at);
+                    const now = new Date();
+                    const diff = Math.floor((now - started) / 1000);
+                    const hours = Math.floor(diff / 3600);
+                    const minutes = Math.floor((diff % 3600) / 60);
+                    const seconds = diff % 60;
+                    this.activeSession.duration_display = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }, 1000);
+            },
+
+            formatTime(iso) {
+                if (!iso) return '—';
+                return new Date(iso).toLocaleString('ru-RU');
+            },
+
+            async addVehicle() {
+                try {
+                    const formData = new FormData();
+                    formData.append('license_plate', this.newVehicle.license_plate);
+                    if (this.newVehicle.model) formData.append('model', this.newVehicle.model);
+                    if (this.newVehicle.color) formData.append('color', this.newVehicle.color);
+
+                    const response = await fetch('/api/vehicles/', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        const vehicle = await response.json();
+                        // Добавляем в список, если его там еще нет
+                        if (!this.vehicles.some(v => v.id === vehicle.id)) {
+                            this.vehicles.push(vehicle);
+                        }
+                        this.showVehicleForm = false;
+                        this.newVehicle = { license_plate: '', model: '', color: '' };
+                        if (typeof Toast !== 'undefined') {
+                            Toast.success('Автомобиль успешно добавлен');
+                        }
+                    } else {
+                        const error = await response.json();
+                        if (typeof Toast !== 'undefined') {
+                            Toast.error(error.detail || 'Ошибка при добавлении автомобиля');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Ошибка добавления автомобиля:', e);
+                    if (typeof Toast !== 'undefined') {
+                        Toast.error('Ошибка соединения с сервером');
+                    }
+                }
+            },
+        }));
+    });
+
+    // Обработка успешного добавления авто
+    document.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.requestConfig.path === '/api/vehicles' && event.detail.xhr.status === 200) {
+            // Перезагружаем список автомобилей
+            Alpine.$data(document.querySelector('[x-data="dashboard"]')).loadVehicles();
+        }
+    });
+</script>
+{% endblock %}

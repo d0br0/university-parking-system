@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Начало парковки — Парковка Университета{% endblock %}
+
+{% block content %}
+<div x-data="sessionStart" x-init="init()">
+    <div class="session-header">
+        <h1 class="page-title">
+            <span class="material-icons">play_circle</span>
+            Начало парковки
+        </h1>
+        <p class="page-subtitle">
+            {% if zone %}
+                Въезд в зону <strong>{{ zone }}</strong>. Выберите автомобиль и подтвердите начало.
+            {% else %}
+                Выберите зону парковки вручную или отсканируйте QR‑код на въезде.
+            {% endif %}
+        </p>
+    </div>
+
+    <div class="session-card">
+        <div class="card-header">
+            <span class="material-icons">location_on</span>
+            <h2>Информация о зоне</h2>
+        </div>
+        <div class="card-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="material-icons">place</span>
+                    <div>
+                        <strong>Зона</strong>
+                        <p x-text="zoneDisplay"></p>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <span class="material-icons">attach_money</span>
+                    <div>
+                        <strong>Тариф</strong>
+                        <p>150 ₽/час, максимум 1200 ₽/день</p>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <span class="material-icons">schedule</span>
+                    <div>
+                        <strong>Время работы</strong>
+                        <p>Круглосуточно</p>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <span class="material-icons">local_parking</span>
+                    <div>
+                        <strong>Свободных мест</strong>
+                        <p x-text="freeSpots"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="session-card">
+        <div class="card-header">
+            <span class="material-icons">directions_car</span>
+            <h2>Выбор автомобиля</h2>
+        </div>
+        <div class="card-body">
+            <div x-show="vehicles.length === 0" class="empty-state">
+                <span class="material-icons">car_rental</span>
+                <p>У вас нет добавленных автомобилей.</p>
+                <a href="/dashboard" class="btn btn-outline">Добавить авто</a>
+            </div>
+            <div x-show="vehicles.length > 0">
+                <label class="form-label">Выберите автомобиль для парковки</label>
+                <select x-model="selectedVehicleId" class="form-select">
+                    <option value="" disabled>— Выберите авто —</option>
+                    <template x-for="vehicle in vehicles" :key="vehicle.id">
+                        <option :value="vehicle.id" x-text="`${vehicle.license_plate}${vehicle.model ? ' — ' + vehicle.model : ''}`"></option>
+                    </template>
+                </select>
+                <div class="vehicle-preview" x-show="selectedVehicleId">
+                    <div class="preview-card">
+                        <span class="material-icons">directions_car</span>
+                        <div>
+                            <strong x-text="selectedVehicle?.license_plate"></strong>
+                            <small x-text="selectedVehicle?.model || 'Модель не указана'"></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="session-card">
+        <div class="card-header">
+            <span class="material-icons">check_circle</span>
+            <h2>Подтверждение въезда</h2>
+        </div>
+        <div class="card-body">
+            <p>Проверьте данные перед началом парковки:</p>
+            <ul class="checklist">
+                <li>
+                    <span class="material-icons" :class="zone ? 'text-success' : 'text-muted'" x-text="zone ? 'check_circle' : 'radio_button_unchecked'"></span>
+                    Зона: <strong x-text="zoneDisplay"></strong>
+                </li>
+                <li>
+                    <span class="material-icons" :class="selectedVehicleId ? 'text-success' : 'text-muted'" x-text="selectedVehicleId ? 'check_circle' : 'radio_button_unchecked'"></span>
+                    Автомобиль: <strong x-text="selectedVehicle?.license_plate || 'не выбран'"></strong>
+                </li>
+                <li>
+                    <span class="material-icons" :class="agreed ? 'text-success' : 'text-muted'" x-text="agreed ? 'check_circle' : 'radio_button_unchecked'"></span>
+                    Согласие с тарифами и правилами
+                </li>
+            </ul>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" x-model="agreed" />
+                    <span>Я согласен с <a href="/terms" target="_blank">тарифами и правилами парковки</a></span>
+                </label>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button
+                @click="confirmStart"
+                :disabled="!canStart || loading"
+                class="btn btn-primary btn-lg"
+            >
+                <span x-show="loading" class="spinner"></span>
+                <span x-text="loading ? 'Обработка...' : 'Подтвердить въезд'"></span>
+            </button>
+            <a href="/dashboard" class="btn btn-outline">Отмена</a>
+        </div>
+    </div>
+
+    <div class="qr-hint">
+        <div class="qr-hint-content">
+            <span class="material-icons">info</span>
+            <p>
+                <strong>Подсказка:</strong> Если вы перешли по QR‑коду, зона выбрана автоматически. 
+                Если нет — выберите зону на главной панели.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('sessionStart', () => ({
+            zone: '{{ zone or "" }}',
+            zoneId: null,
+            vehicles: [],
+            selectedVehicleId: null,
+            agreed: false,
+            freeSpots: 'загрузка...',
+            loading: false,
+
+            init() {
+                this.loadVehicles();
+                this.loadZoneInfo();
+            },
+
+            get zoneDisplay() {
+                return this.zone ? `Зона ${this.zone}` : 'не указана';
+            },
+
+            get selectedVehicle() {
+                return this.vehicles.find(v => v.id == this.selectedVehicleId) || null;
+            },
+
+            get canStart() {
+                return this.zone && this.selectedVehicleId && this.agreed;
+            },
+
+            async loadVehicles() {
+                try {
+                    const response = await fetch('/api/vehicles');
+                    if (response.ok) {
+                        this.vehicles = await response.json();
+                        if (this.vehicles.length > 0) {
+                            this.selectedVehicleId = this.vehicles[0].id;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки автомобилей:', e);
+                }
+            },
+
+            async loadZoneInfo() {
+                if (!this.zone) return;
+                try {
+                    // Сначала ищем зону по имени в списке всех зон
+                    const zonesRes = await fetch('/api/zones/');
+                    if (zonesRes.ok) {
+                        const zones = await zonesRes.json();
+                        const foundZone = zones.find(z => z.name === this.zone);
+                        if (foundZone) {
+                            this.zoneId = foundZone.id;
+                            
+                            // Теперь получаем доп. инфо по доступности
+                            const availRes = await fetch(`/api/zones/${this.zoneId}/availability`);
+                            if (availRes.ok) {
+                                const avail = await availRes.json();
+                                this.freeSpots = avail.available_spots ?? 'неизвестно';
+                            }
+                        } else {
+                            this.freeSpots = 'зона не найдена';
+                        }
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки информации о зоне:', e);
+                }
+            },
+
+            async confirmStart() {
+                if (!this.canStart) return;
+                
+                this.loading = true;
+                try {
+                    const response = await fetch('/api/sessions/start', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            vehicle_id: this.selectedVehicleId,
+                            zone_id: this.zoneId
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (typeof Toast !== 'undefined') {
+                            Toast.success('Парковка успешно начата!');
+                        }
+                        setTimeout(() => {
+                            window.location.href = `/session/${data.id}`;
+                        }, 1000);
+                    } else {
+                        const err = await response.json();
+                        if (typeof Toast !== 'undefined') {
+                            Toast.error(err.detail || 'Ошибка при начале сессии');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Ошибка:', e);
+                    if (typeof Toast !== 'undefined') {
+                        Toast.error('Ошибка соединения с сервером');
+                    }
+                } finally {
+                    this.loading = false;
+                }
+            }
+        }));
+    });
+</script>
+{% endblock %}

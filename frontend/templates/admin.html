@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block title %}Админ-панель | Парковка Университета{% endblock %}
+
+{% block content %}
+<div class="admin-container" x-data="adminPanel()">
+    <header class="page-header">
+        <h1>Админ-панель</h1>
+        <p class="text-muted">Живая статистика и управление QR-кодами</p>
+    </header>
+
+    <!-- Блок статистики -->
+    <section class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon revenue">
+                <span class="material-icons">payments</span>
+            </div>
+            <div class="stat-info">
+                <h3>Общая выручка</h3>
+                <p class="stat-value">{{ "{:,.2f}".format(total_revenue).replace(",", " ") }} ₽</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon active">
+                <span class="material-icons">directions_car</span>
+            </div>
+            <div class="stat-info">
+                <h3>Активные сессии</h3>
+                <p class="stat-value">{{ active_sessions }}</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon today">
+                <span class="material-icons">today</span>
+            </div>
+            <div class="stat-info">
+                <h3>Сессии сегодня</h3>
+                <p class="stat-value">{{ today_sessions }}</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Генератор QR-кодов -->
+    <section class="qr-generator card">
+        <h2>Генератор QR-кодов для зон</h2>
+        <form 
+            @submit.prevent="generateQR"
+            class="qr-form"
+        >
+            <div class="form-group">
+                <label for="zone-select">Выберите зону парковки:</label>
+                <select x-model="selectedZone" id="zone-select" class="form-control" required>
+                    <option value="" disabled selected>Выберите зону...</option>
+                    <option value="A1">Зона A1</option>
+                    <option value="A2">Зона A2</option>
+                    <option value="B1">Зона B1</option>
+                    <option value="B2">Зона B2</option>
+                    <option value="C1">Зона C1</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-large" :disabled="loadingQR">
+                <span x-show="!loadingQR" class="material-icons">qr_code_2</span>
+                <div x-show="loadingQR" class="spinner-small"></div>
+                <span x-text="loadingQR ? 'Генерация...' : 'Сгенерировать'"></span>
+            </button>
+        </form>
+
+        <div id="qr-result" class="qr-result-box" x-show="qrReady" x-transition:enter="fade-in">
+            <div id="qr-output" class="qr-svg-container"></div>
+            <div class="qr-details">
+                <p class="zone-label">Зона: <span x-text="currentZone" class="font-bold"></span></p>
+                <div class="link-box">
+                    <code x-text="qrUrl"></code>
+                    <button @click="copyLink()" class="btn-icon" title="Копировать ссылку">
+                        <span class="material-icons" x-text="copyIcon">content_copy</span>
+                    </button>
+                </div>
+                <div class="action-buttons" style="margin-top: 1.5rem;">
+                    <button @click="downloadPDF()" class="btn btn-outline btn-large">
+                        <span class="material-icons">picture_as_pdf</span>
+                        Скачать PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<style>
+    /* Стили для админ-панели */
+    .admin-container {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .stat-card {
+        background: var(--card-bg, #fff);
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        transition: transform 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .stat-icon span { font-size: 32px; }
+
+    .revenue { background: #e8f5e9; color: #2e7d32; }
+    .active { background: #e3f2fd; color: #1565c0; }
+    .today { background: #fff3e0; color: #ef6c00; }
+
+    .stat-info h3 {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--text-muted, #666);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .stat-value {
+        margin: 0.25rem 0 0 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .card {
+        background: var(--card-bg, #fff);
+        padding: 2rem;
+        border-radius: 16px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+    }
+
+    .qr-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        max-width: 400px;
+        margin: 1.5rem 0;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #eee;
+        border-radius: 8px;
+        font-size: 1rem;
+        min-height: 44px; /* Touch target */
+    }
+
+    .btn-large {
+        padding: 1rem 1.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .qr-result-box {
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #eee;
+        text-align: center;
+    }
+
+    .qr-svg-container {
+        max-width: 250px;
+        margin: 0 auto;
+        padding: 1rem;
+        background: white;
+        border-radius: 8px;
+    }
+
+    .qr-details {
+        margin-top: 1.5rem;
+    }
+
+    .link-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background: #f8f9fa;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        margin-top: 0.5rem;
+    }
+
+    .link-box code {
+        font-size: 0.9rem;
+        color: #d81b60;
+        word-break: break-all;
+    }
+
+    /* Темная тема через prefers-color-scheme */
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --card-bg: #1e1e1e;
+            --text-muted: #aaa;
+            --bg: #121212;
+            --text: #eee;
+        }
+        .stat-card, .card { background: #1e1e1e; }
+        .form-control { background: #2c2c2c; border-color: #333; color: #fff; }
+        .link-box { background: #2c2c2c; }
+        .qr-result-box { border-top-color: #333; }
+        .revenue { background: #1b2e1c; color: #81c784; }
+        .active { background: #1a237e33; color: #64b5f6; }
+        .today { background: #4e342e33; color: #ffb74d; }
+    }
+
+    @media (max-width: 600px) {
+        .qr-form { max-width: 100%; }
+        .stats-grid { grid-template-columns: 1fr; }
+    }
+
+    .fade-in {
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .loader, .spinner-small {
+        display: none;
+        justify-content: center;
+    }
+    .spinner-small {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top: 2px solid #fff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+    }
+    .htmx-request .loader { display: flex; }
+    .spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid #eee;
+        border-top: 3px solid var(--primary, #1976d2);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function adminPanel() {
+        return {
+            qrReady: false,
+            loadingQR: false,
+            selectedZone: '',
+            currentZone: '',
+            qrUrl: '',
+            copyIcon: 'content_copy',
+            
+            async generateQR() {
+                if (!this.selectedZone) return;
+                
+                this.loadingQR = true;
+                this.qrReady = false;
+                
+                try {
+                    const response = await fetch('/api/admin/generate-qr', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ zone: this.selectedZone })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.currentZone = data.zone;
+                        this.qrUrl = data.url;
+                        document.getElementById('qr-output').innerHTML = data.qr_svg;
+                        this.qrReady = true;
+                    } else {
+                        const err = await response.json();
+                        if (typeof Toast !== 'undefined') Toast.error(err.detail || 'Ошибка генерации');
+                    }
+                } catch (e) {
+                    console.error('QR Error:', e);
+                    if (typeof Toast !== 'undefined') Toast.error('Ошибка связи с сервером');
+                } finally {
+                    this.loadingQR = false;
+                }
+            },
+            
+            downloadPDF() {
+                if (!this.currentZone) return;
+                window.location.href = `/api/admin/download-qr-pdf?zone=${encodeURIComponent(this.currentZone)}`;
+            }
+        }
+    }
+</script>
+{% endblock %}

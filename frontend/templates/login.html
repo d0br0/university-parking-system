@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Вход в систему — Парковка Университета{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1 class="auth-title">
+                <span class="material-icons">local_parking</span>
+                Вход в систему
+            </h1>
+            <p class="auth-subtitle">Используйте email и пароль для доступа к парковке</p>
+        </div>
+
+        <form
+            hx-post="/api/auth/login"
+            hx-swap="none"
+            hx-indicator="#login-indicator"
+            class="auth-form"
+        >
+            <div class="form-group">
+                <label for="email" class="form-label">
+                    <span class="material-icons">email</span>
+                    Email
+                </label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    placeholder="student@university.edu"
+                    class="form-input"
+                    autocomplete="email"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">
+                    <span class="material-icons">lock</span>
+                    Пароль
+                </label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                    placeholder="••••••••"
+                    class="form-input"
+                    autocomplete="current-password"
+                />
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-block">
+                    <span id="login-indicator" class="htmx-indicator">
+                        <span class="spinner"></span>
+                    </span>
+                    <span>Войти</span>
+                </button>
+            </div>
+
+            <div class="auth-footer">
+                <p class="text-sm">
+                    Нет аккаунта? <a href="/register">Зарегистрироваться</a>
+                </p>
+                <p class="text-sm">
+                    Демо доступ: <code>admin@univ.edu</code> / <code>admin123</code>
+                </p>
+            </div>
+        </form>
+
+        <div class="qr-hint">
+            <p class="text-center">
+                <span class="material-icons">qr_code_scanner</span>
+                Для входа через QR‑код на парковке перейдите по ссылке с зоной.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Обработка успешного входа через HTMX
+    document.addEventListener('htmx:afterRequest', function(event) {
+        if (event.detail.requestConfig.path === '/api/auth/login') {
+            if (event.detail.xhr.status === 200) {
+                if (typeof Toast !== 'undefined') {
+                    Toast.success('Вход выполнен успешно');
+                }
+                // Успешный вход — редирект на dashboard
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 800);
+            }
+        }
+    });
+</script>
+{% endblock %}

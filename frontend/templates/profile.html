@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль — Парковка Университета{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">Личный профиль</h2>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4 text-center">
+                        <div class="display-1 text-muted">
+                            <span class="material-icons" style="font-size: 100px;">account_circle</span>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-4 font-weight-bold">Email:</div>
+                        <div class="col-sm-8">{{ user.email }}</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-4 font-weight-bold">Телефон:</div>
+                        <div class="col-sm-8">{{ user.phone or 'Не указан' }}</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-sm-4 font-weight-bold">Статус:</div>
+                        <div class="col-sm-8">
+                            {% if user.is_admin %}
+                                <span class="badge badge-danger">Администратор</span>
+                            {% else %}
+                                <span class="badge badge-success">Пользователь</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-sm-4 font-weight-bold">Дата регистрации:</div>
+                        <div class="col-sm-8">{{ user.created_at.strftime('%d.%m.%Y') }}</div>
+                    </div>
+                </div>
+                <div class="card-footer text-right">
+                    <a href="/dashboard" class="btn btn-secondary">Назад</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

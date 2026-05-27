@@ -1,0 +1,179 @@
+/* ===== СТИЛИ ДЛЯ УПРАВЛЕНИЯ ЗОНАМИ ===== */
+
+.admin-zones-page {
+    padding: 2rem 0;
+}
+
+.zones-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.zone-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.zone-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.zone-card.inactive {
+    opacity: 0.7;
+    border-color: var(--border);
+}
+
+.zone-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+}
+
+.zone-header h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+}
+
+.zone-body {
+    padding: 1.25rem;
+}
+
+.zone-description {
+    color: var(--text-light);
+    font-size: 0.9375rem;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.zone-location {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-light);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.zone-location .material-icons {
+    font-size: 18px;
+    color: var(--primary);
+}
+
+.zone-stats {
+    display: flex;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.zone-stats .stat {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.zone-stats .stat-label {
+    font-size: 0.875rem;
+    color: var(--text-light);
+}
+
+.zone-stats .stat-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.zone-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+}
+
+.zone-actions .btn {
+    flex: 1;
+    justify-content: center;
+}
+
+.zone-actions .btn-danger {
+    flex: 0 0 auto;
+}
+
+/* Статистика в зоне */
+.zone-occupancy {
+    margin-top: 1rem;
+}
+
+.occupancy-bar {
+    height: 8px;
+    background: var(--bg);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.occupancy-fill {
+    height: 100%;
+    background: var(--success);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.occupancy-fill.warning {
+    background: var(--warning);
+}
+
+.occupancy-fill.danger {
+    background: var(--danger);
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .zones-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .zone-actions {
+        flex-wrap: wrap;
+    }
+    
+    .zone-actions .btn {
+        flex: 1 1 calc(50% - 0.25rem);
+    }
+    
+    .zone-actions .btn-danger {
+        flex: 0 0 40px;
+    }
+}
+
+/* Пустое состояние */
+.zones-empty {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-light);
+}
+
+.zones-empty .material-icons {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.zones-empty h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}

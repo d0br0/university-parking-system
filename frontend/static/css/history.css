@@ -1,0 +1,251 @@
+/* ===== СТИЛИ ДЛЯ СТРАНИЦЫ ИСТОРИИ ===== */
+
+.history-page {
+    padding: 2rem 0;
+}
+
+/* Фильтры */
+.filters-card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+.filters-row {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-light);
+}
+
+.filter-input {
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9375rem;
+    min-width: 160px;
+    transition: all 0.2s ease;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.filter-actions {
+    margin-left: auto;
+}
+
+/* Таблица */
+.table-container {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+}
+
+.data-table th,
+.data-table td {
+    padding: 1rem 1.25rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.data-table th {
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--bg);
+}
+
+.data-table tbody tr:hover {
+    background: var(--bg);
+}
+
+.data-table td.cost {
+    font-weight: 600;
+    color: var(--success);
+}
+
+.license-plate {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: var(--primary);
+    color: white;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.025em;
+}
+
+.time-range {
+    color: var(--text-light);
+    font-size: 0.8125rem;
+}
+
+/* Пагинация */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+.page-info {
+    font-size: 0.9375rem;
+    color: var(--text);
+}
+
+/* Статистика */
+.stats-bar {
+    text-align: center;
+    padding: 0.875rem;
+    background: var(--bg);
+    border-radius: var(--radius);
+    color: var(--text-light);
+    font-size: 0.9375rem;
+}
+
+/* Квитанция */
+.receipt {
+    font-family: 'Courier New', monospace;
+    background: var(--bg);
+    padding: 2rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+.receipt-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px dashed var(--border);
+}
+
+.receipt-header h4 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.receipt-body {
+    margin-bottom: 1.5rem;
+}
+
+.receipt-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px dotted var(--border);
+}
+
+.receipt-row.total {
+    border-top: 2px solid var(--border);
+    border-bottom: 2px solid var(--border);
+    padding: 0.75rem 0;
+    font-size: 1.125rem;
+    margin-top: 0.5rem;
+}
+
+.receipt-divider {
+    border-top: 1px dashed var(--border);
+    margin: 0.75rem 0;
+}
+
+.receipt-footer {
+    text-align: center;
+    padding-top: 1rem;
+    border-top: 2px dashed var(--border);
+    color: var(--text-light);
+    font-size: 0.875rem;
+}
+
+/* Печать квитанции */
+@media print {
+    .navbar, .footer, .filters-card, .table-container, .pagination, .modal-overlay > *:not(.modal) {
+        display: none !important;
+    }
+    
+    .modal-overlay {
+        position: static;
+        background: white;
+        display: block !important;
+    }
+    
+    .modal {
+        max-width: 100%;
+        box-shadow: none;
+        background: white;
+    }
+    
+    .receipt {
+        border: 1px solid #ccc;
+        background: white;
+    }
+    
+    .modal-footer {
+        display: none;
+    }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .filters-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-group {
+        width: 100%;
+    }
+    
+    .filter-input {
+        width: 100%;
+    }
+    
+    .filter-actions {
+        margin-left: 0;
+        margin-top: 1rem;
+        text-align: center;
+    }
+    
+    .data-table {
+        font-size: 0.875rem;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 0.75rem 0.5rem;
+    }
+}
