@@ -27,9 +27,16 @@ class UserLogin(BaseModel):
 class UserOut(UserBase):
     id: UUID
     is_admin: bool
+    avatar_url: Optional[str] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(None, max_length=20)
+    password: Optional[str] = Field(None, min_length=6, max_length=128)
 
 
 # ---------- Vehicle ----------

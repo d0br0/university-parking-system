@@ -16,7 +16,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 
-from app.auth import get_current_user
+from app.config import settings
+from app.auth import get_current_user, require_admin
 from app.database import get_db
 from app.models import Session as ParkingSession, Payment, User
 from pydantic import BaseModel

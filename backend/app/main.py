@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timezone
 from decimal import Decimal
-from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi import FastAPI, Request, Depends, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -15,7 +15,7 @@ from app.config import settings
 from app.database import engine, Base, get_db
 from app.models import User, Tariff
 from app.auth import get_password_hash, get_current_admin_user, get_current_user
-from app.routers import auth, sessions, payments, admin, vehicles, admin_reports, zones
+from app.routers import auth, sessions, payments, admin, vehicles, admin_reports, zones, users
 
 from pathlib import Path
 
@@ -57,6 +57,7 @@ else:
 
 # Подключение роутеров
 app.include_router(auth.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 app.include_router(sessions.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
@@ -94,6 +95,20 @@ async def profile_page(request: Request, current_user: User = Depends(get_curren
 async def register_page(request: Request):
     """Страница регистрации."""
     return templates.TemplateResponse("register.html", {"request": request})
+
+
+@app.post("/auth/logout")
+async def logout_page(response: Response):
+    """Выход из системы и редирект на главную."""
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=settings.COOKIE_SECURE
+    )
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/", status_code=303)
 
 
 # Глобальные обработчики ошибок
@@ -241,9 +256,9 @@ async def root(request: Request):
 
 
 @app.get("/dashboard")
-async def dashboard(request: Request):
+async def dashboard(request: Request, current_user: User = Depends(get_current_user)):
     """Панель пользователя."""
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    return templates.TemplateResponse("dashboard.html", {"request": request, "user": current_user})
 
 
 @app.get("/history")
@@ -253,25 +268,31 @@ async def history_page(request: Request, current_user: User = Depends(get_curren
 
 
 @app.get("/session/start")
-async def session_start(request: Request, zone: str = None):
+async def session_start(request: Request, zone: str = None, current_user: User = Depends(get_current_user)):
     """Страница начала сессии парковки (QR-вход)."""
     return templates.TemplateResponse(
         "session_start.html",
-        {"request": request, "zone": zone}
+        {"request": request, "zone": zone, "user": current_user}
     )
 
 
 @app.get("/session/{session_id}")
-async def session_active(request: Request, session_id: str):
+async def session_active(request: Request, session_id: str, current_user: User = Depends(get_current_user)):
     """Страница активной сессии парковки."""
     return templates.TemplateResponse(
         "session_active.html",
-        {"request": request, "session_id": session_id}
+        {"request": request, "session_id": session_id, "user": current_user}
     )
 
 
-@app.get("/admin")
-async def admin_panel(request: Request, current_user: User = Depends(get_current_admin_user)):
-    """Страница админ-панели."""
-    from app.routers.admin import admin_page
-    return await admin_page(request, next(get_db()), current_user)
+@app.get("/admin/page")
+async def admin_page_route(request: Request, current_user: User = Depends(get_current_admin_user)):
+    """Страница администратора."""
+    return templates.TemplateResponse("admin.html", {"request": request, "user": current_user})
+
+
+@app.get("/api/admin/page")
+async def admin_api_page_redirect():
+    """Редирект со старого пути на новый."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/admin/page")

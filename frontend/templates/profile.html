@@ -3,51 +3,206 @@
 {% block title %}Профиль — Парковка Университета{% endblock %}
 
 {% block content %}
-<div class="container py-5">
+<div class="container py-5" x-data="profileManager()">
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card shadow">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h2 class="mb-0">Личный профиль</h2>
+                    <button @click="isEditing = !isEditing" class="btn btn-light btn-sm d-flex align-items-center">
+                        <span class="material-icons mr-1" x-text="isEditing ? 'close' : 'edit'"></span>
+                        <span x-text="isEditing ? 'Отмена' : 'Редактировать'"></span>
+                    </button>
                 </div>
                 <div class="card-body">
+                    <!-- Аватар -->
                     <div class="mb-4 text-center">
-                        <div class="display-1 text-muted">
-                            <span class="material-icons" style="font-size: 100px;">account_circle</span>
+                        <div class="avatar-wrapper position-relative d-inline-block">
+                            <template x-if="userData.avatar_url">
+                                <img :src="userData.avatar_url" alt="Avatar" class="rounded-circle shadow-sm" style="width: 150px; height: 150px; object-fit: cover;">
+                            </template>
+                            <template x-if="!userData.avatar_url">
+                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 150px; height: 150px;">
+                                    <span class="material-icons text-muted" style="font-size: 80px;">account_circle</span>
+                                </div>
+                            </template>
+                            
+                            <div class="avatar-upload-overlay" @click="$refs.avatarInput.click()" title="Изменить фото">
+                                <span class="material-icons">photo_camera</span>
+                            </div>
+                            <input type="file" x-ref="avatarInput" @change="uploadAvatar" class="d-none" accept="image/*">
                         </div>
                     </div>
                     
-                    <div class="row mb-3">
-                        <div class="col-sm-4 font-weight-bold">Email:</div>
-                        <div class="col-sm-8">{{ user.email }}</div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-sm-4 font-weight-bold">Телефон:</div>
-                        <div class="col-sm-8">{{ user.phone or 'Не указан' }}</div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-sm-4 font-weight-bold">Статус:</div>
-                        <div class="col-sm-8">
-                            {% if user.is_admin %}
-                                <span class="badge badge-danger">Администратор</span>
-                            {% else %}
-                                <span class="badge badge-success">Пользователь</span>
-                            {% endif %}
+                    <!-- Информация (Просмотр) -->
+                    <div x-show="!isEditing" x-transition:enter="fade-in">
+                        <div class="row mb-3">
+                            <div class="col-sm-4 font-weight-bold">Email:</div>
+                            <div class="col-sm-8" x-text="userData.email"></div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4 font-weight-bold">Телефон:</div>
+                            <div class="col-sm-8" x-text="userData.phone || 'Не указан'"></div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-sm-4 font-weight-bold">Статус:</div>
+                            <div class="col-sm-8">
+                                <span class="badge" :class="userData.is_admin ? 'badge-danger' : 'badge-success'" x-text="userData.is_admin ? 'Администратор' : 'Пользователь'"></span>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-sm-4 font-weight-bold">Дата регистрации:</div>
+                            <div class="col-sm-8" x-text="formatDate(userData.created_at)"></div>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-sm-4 font-weight-bold">Дата регистрации:</div>
-                        <div class="col-sm-8">{{ user.created_at.strftime('%d.%m.%Y') }}</div>
-                    </div>
+                    <!-- Форма редактирования -->
+                    <form x-show="isEditing" @submit.prevent="updateProfile" x-transition:enter="fade-in">
+                        <div class="form-group mb-3">
+                            <label class="font-weight-bold">Email:</label>
+                            <input type="email" x-model="editData.email" class="form-control" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="font-weight-bold">Телефон:</label>
+                            <input type="text" x-model="editData.phone" class="form-control" placeholder="+7 (___) ___-____">
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="font-weight-bold">Новый пароль:</label>
+                            <input type="password" x-model="editData.password" class="form-control" placeholder="Оставьте пустым, если не хотите менять" minlength="6">
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" :disabled="loading">
+                                <span x-show="loading" class="spinner-border spinner-border-sm mr-2"></span>
+                                Сохранить изменения
+                            </button>
+                        </div>
+                    </form>
                 </div>
                 <div class="card-footer text-right">
-                    <a href="/dashboard" class="btn btn-secondary">Назад</a>
+                    <a href="/dashboard" class="btn btn-outline-secondary">Назад к панели</a>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .avatar-wrapper {
+        cursor: pointer;
+    }
+    .avatar-upload-overlay {
+        position: absolute;
+        bottom: 5px;
+        right: 5px;
+        background: rgba(33, 37, 41, 0.7);
+        color: white;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        border: 2px solid white;
+    }
+    .avatar-wrapper:hover .avatar-upload-overlay {
+        background: #0d6efd;
+        transform: scale(1.1);
+    }
+    .badge-danger { background-color: #dc3545; }
+    .badge-success { background-color: #198754; }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function profileManager() {
+        return {
+            userData: {
+                email: '{{ user.email }}',
+                phone: '{{ user.phone or "" }}',
+                is_admin: {{ 'true' if user.is_admin else 'false' }},
+                created_at: '{{ user.created_at.isoformat() }}',
+                avatar_url: '{{ user.avatar_url or "" }}'
+            },
+            editData: {
+                email: '{{ user.email }}',
+                phone: '{{ user.phone or "" }}',
+                password: ''
+            },
+            isEditing: false,
+            loading: false,
+
+            formatDate(isoString) {
+                if (!isoString) return '';
+                const date = new Date(isoString);
+                return date.toLocaleDateString('ru-RU');
+            },
+
+            async updateProfile() {
+                this.loading = true;
+                try {
+                    const response = await fetch('/api/users/me', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.editData)
+                    });
+
+                    if (response.ok) {
+                        const updatedUser = await response.json();
+                        this.userData = updatedUser;
+                        this.isEditing = false;
+                        this.editData.password = '';
+                        if (typeof Toast !== 'undefined') Toast.success('Профиль успешно обновлен');
+                    } else {
+                        const err = await response.json();
+                        if (typeof Toast !== 'undefined') Toast.error(err.detail || 'Ошибка при обновлении');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    if (typeof Toast !== 'undefined') Toast.error('Ошибка связи с сервером');
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async uploadAvatar(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    if (typeof Toast !== 'undefined') Toast.info('Загрузка аватара...');
+                    const response = await fetch('/api/users/me/avatar', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        const updatedUser = await response.json();
+                        this.userData.avatar_url = updatedUser.avatar_url;
+                        if (typeof Toast !== 'undefined') Toast.success('Фото профиля обновлено');
+                        // Обновляем аватар в глобальном состоянии, если нужно
+                        if (window.Alpine) {
+                             // Это обновит UI везде, где используется user.avatar_url
+                        }
+                    } else {
+                        const err = await response.json();
+                        if (typeof Toast !== 'undefined') Toast.error(err.detail || 'Ошибка загрузки');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    if (typeof Toast !== 'undefined') Toast.error('Ошибка связи с сервером');
+                }
+            }
+        }
+    }
+</script>
 {% endblock %}

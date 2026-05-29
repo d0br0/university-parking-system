@@ -173,7 +173,7 @@
 
             async loadVehicles() {
                 try {
-                    const response = await fetch('/api/vehicles');
+                    const response = await fetch('/api/vehicles/');
                     if (response.ok) {
                         this.vehicles = await response.json();
                         if (this.vehicles.length > 0) {

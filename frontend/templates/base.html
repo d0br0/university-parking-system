@@ -22,10 +22,13 @@
             // Загружаем данные пользователя из API
             fetch('/api/auth/me', { credentials: 'include' })
                 .then(r => r.ok ? r.json() : null)
-                .then(data => { this.user = data; })
+                .then(data => { 
+                    this.user = data; 
+                })
                 .catch(() => { this.user = null; });
         }
     }">
+    <nav class="navbar" x-show="user">
         <div class="container">
             <div class="nav-content">
                 <a href="/" class="logo">
@@ -43,10 +46,6 @@
                     <a href="/history" class="nav-link">
                         <span class="material-icons">history</span>
                         История
-                    </a>
-                    <a href="/admin/reports" class="nav-link" x-show="user?.is_admin">
-                        <span class="material-icons">assessment</span>
-                        Отчёты
                     </a>
                     <a href="/api/admin/page" class="nav-link" x-show="user?.is_admin">
                         <span class="material-icons">qr_code_2</span>
