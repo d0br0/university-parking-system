@@ -3,26 +3,40 @@
 {% block title %}Профиль — Парковка Университета{% endblock %}
 
 {% block content %}
-<div class="container py-5" x-data="profileManager()">
+<div class="container py-8" x-data="profileManager()">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h2 class="mb-0">Личный профиль</h2>
-                    <button @click="isEditing = !isEditing" class="btn btn-light btn-sm d-flex align-items-center">
+        <div class="max-w-3xl mx-auto">
+            <div class="dashboard-header flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="page-title flex items-center gap-3">
+                        <span class="material-icons text-primary">person</span>
+                        Личный профиль
+                    </h1>
+                </div>
+                <div class="flex gap-2">
+                    <template x-if="typeof Alpine !== 'undefined' && Alpine.store('activeSession')?.isActive">
+                        <a :href="'/session/' + Alpine.store('activeSession').id" class="btn btn-warning flex items-center gap-1 shadow-sm animate-pulse">
+                            <span class="material-icons">timer</span>
+                            <span>Активная парковка</span>
+                        </a>
+                    </template>
+                    <button @click="isEditing = !isEditing" class="btn" :class="isEditing ? 'btn-outline' : 'btn-primary'">
                         <span class="material-icons mr-1" x-text="isEditing ? 'close' : 'edit'"></span>
                         <span x-text="isEditing ? 'Отмена' : 'Редактировать'"></span>
                     </button>
                 </div>
-                <div class="card-body">
+            </div>
+
+            <div class="dashboard-card shadow-lg">
+                <div class="card-body p-6">
                     <!-- Аватар -->
-                    <div class="mb-4 text-center">
-                        <div class="avatar-wrapper position-relative d-inline-block">
+                    <div class="mb-8 text-center">
+                        <div class="avatar-wrapper relative inline-block group">
                             <template x-if="userData.avatar_url">
-                                <img :src="userData.avatar_url" alt="Avatar" class="rounded-circle shadow-sm" style="width: 150px; height: 150px; object-fit: cover;">
+                                <img :src="userData.avatar_url" alt="Avatar" class="profile-image shadow-md">
                             </template>
                             <template x-if="!userData.avatar_url">
-                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 150px; height: 150px;">
+                                <div class="profile-image-placeholder shadow-md">
                                     <span class="material-icons text-muted" style="font-size: 80px;">account_circle</span>
                                 </div>
                             </template>
@@ -30,59 +44,64 @@
                             <div class="avatar-upload-overlay" @click="$refs.avatarInput.click()" title="Изменить фото">
                                 <span class="material-icons">photo_camera</span>
                             </div>
-                            <input type="file" x-ref="avatarInput" @change="uploadAvatar" class="d-none" accept="image/*">
+                            <input type="file" x-ref="avatarInput" @change="uploadAvatar" class="hidden" accept="image/*">
                         </div>
+                        <p class="text-sm text-muted mt-3">Нажмите на фото, чтобы изменить его</p>
                     </div>
                     
                     <!-- Информация (Просмотр) -->
-                    <div x-show="!isEditing" x-transition:enter="fade-in">
-                        <div class="row mb-3">
-                            <div class="col-sm-4 font-weight-bold">Email:</div>
-                            <div class="col-sm-8" x-text="userData.email"></div>
+                    <div x-show="!isEditing" x-transition:enter="fade-in" class="space-y-6">
+                        <div class="info-row">
+                            <div class="info-label">Email:</div>
+                            <div class="info-value" x-text="userData.email"></div>
                         </div>
                         
-                        <div class="row mb-3">
-                            <div class="col-sm-4 font-weight-bold">Телефон:</div>
-                            <div class="col-sm-8" x-text="userData.phone || 'Не указан'"></div>
+                        <div class="info-row">
+                            <div class="info-label">Телефон:</div>
+                            <div class="info-value" x-text="userData.phone || 'Не указан'"></div>
                         </div>
                         
-                        <div class="row mb-3">
-                            <div class="col-sm-4 font-weight-bold">Статус:</div>
-                            <div class="col-sm-8">
-                                <span class="badge" :class="userData.is_admin ? 'badge-danger' : 'badge-success'" x-text="userData.is_admin ? 'Администратор' : 'Пользователь'"></span>
+                        <div class="info-row">
+                            <div class="info-label">Статус:</div>
+                            <div class="info-value">
+                                <span class="badge" :class="userData.is_admin ? 'badge-danger' : 'badge-success'" 
+                                      x-text="userData.is_admin ? 'АДМИНИСТРАТОР' : 'ПОЛЬЗОВАТЕЛЬ'"></span>
                             </div>
                         </div>
 
-                        <div class="row mb-3">
-                            <div class="col-sm-4 font-weight-bold">Дата регистрации:</div>
-                            <div class="col-sm-8" x-text="formatDate(userData.created_at)"></div>
+                        <div class="info-row">
+                            <div class="info-label">Дата регистрации:</div>
+                            <div class="info-value text-muted" x-text="formatDate(userData.created_at)"></div>
                         </div>
                     </div>
 
                     <!-- Форма редактирования -->
-                    <form x-show="isEditing" @submit.prevent="updateProfile" x-transition:enter="fade-in">
-                        <div class="form-group mb-3">
-                            <label class="font-weight-bold">Email:</label>
-                            <input type="email" x-model="editData.email" class="form-control" required>
+                    <form x-show="isEditing" @submit.prevent="updateProfile" x-transition:enter="fade-in" class="space-y-4">
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" x-model="editData.email" class="form-input" required>
                         </div>
-                        <div class="form-group mb-3">
-                            <label class="font-weight-bold">Телефон:</label>
-                            <input type="text" x-model="editData.phone" class="form-control" placeholder="+7 (___) ___-____">
+                        <div class="form-group">
+                            <label class="form-label">Телефон</label>
+                            <input type="text" x-model="editData.phone" class="form-input" placeholder="+7 (___) ___-____">
                         </div>
-                        <div class="form-group mb-3">
-                            <label class="font-weight-bold">Новый пароль:</label>
-                            <input type="password" x-model="editData.password" class="form-control" placeholder="Оставьте пустым, если не хотите менять" minlength="6">
+                        <div class="form-group">
+                            <label class="form-label">Новый пароль</label>
+                            <input type="password" x-model="editData.password" class="form-input" placeholder="Оставьте пустым, если не хотите менять" minlength="6">
                         </div>
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary" :disabled="loading">
-                                <span x-show="loading" class="spinner-border spinner-border-sm mr-2"></span>
+                        <div class="pt-4">
+                            <button type="submit" class="btn btn-primary w-full py-3" :disabled="loading">
+                                <span x-show="loading" class="spinner mr-2"></span>
                                 Сохранить изменения
                             </button>
                         </div>
                     </form>
                 </div>
-                <div class="card-footer text-right">
-                    <a href="/dashboard" class="btn btn-outline-secondary">Назад к панели</a>
+                <div class="card-footer bg-gray-50 p-4 border-t border-gray-100 flex justify-center">
+                    <a href="/dashboard" class="btn btn-outline flex items-center gap-2">
+                        <span class="material-icons">arrow_back</span>
+                        Назад к панели управления
+                    </a>
                 </div>
             </div>
         </div>
@@ -90,32 +109,115 @@
 </div>
 
 <style>
+    .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+    .max-w-3xl { max-width: 48rem; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .mb-6 { margin-bottom: 1.5rem; }
+    .mb-8 { margin-bottom: 2rem; }
+    .mt-3 { margin-top: 0.75rem; }
+    .p-6 { padding: 1.5rem; }
+    .space-y-6 > * + * { margin-top: 1.5rem; }
+    .space-y-4 > * + * { margin-top: 1rem; }
+    .w-full { width: 100%; }
+    .hidden { display: none; }
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .justify-center { justify-content: space-center; }
+    .gap-3 { gap: 0.75rem; }
+    .gap-2 { gap: 0.5rem; }
+
+    .profile-image, .profile-image-placeholder {
+        width: 160px;
+        height: 160px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid var(--bg-card);
+        outline: 2px solid var(--border);
+    }
+    
+    .profile-image-placeholder {
+        background-color: var(--bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
     .avatar-wrapper {
+        position: relative;
         cursor: pointer;
     }
+
     .avatar-upload-overlay {
         position: absolute;
-        bottom: 5px;
-        right: 5px;
-        background: rgba(33, 37, 41, 0.7);
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
         color: white;
-        width: 42px;
-        height: 42px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s ease;
-        border: 2px solid white;
+        opacity: 0;
+        transition: opacity 0.2s ease;
     }
+
     .avatar-wrapper:hover .avatar-upload-overlay {
-        background: #0d6efd;
-        transform: scale(1.1);
+        opacity: 1;
     }
-    .badge-danger { background-color: #dc3545; }
-    .badge-success { background-color: #198754; }
-    .fade-in { animation: fadeIn 0.3s ease-in; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .info-row {
+        display: flex;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .info-label {
+        width: 35%;
+        font-weight: 600;
+        color: var(--text-light);
+    }
+
+    .info-value {
+        width: 65%;
+        font-weight: 500;
+    }
+
+    .badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+
+    .badge-danger { background-color: var(--danger); color: white; }
+    .badge-success { background-color: var(--success); color: white; }
+
+    .btn-warning {
+        background-color: var(--warning);
+        color: white;
+    }
+    .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .8; }
+    }
+
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .spinner {
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.75s linear infinite;
+        display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 {% endblock %}
 
@@ -138,6 +240,10 @@
             isEditing: false,
             loading: false,
 
+            init() {
+                // Данные сессии теперь берутся из глобального store в base.html
+            },
+
             formatDate(isoString) {
                 if (!isoString) return '';
                 const date = new Date(isoString);
@@ -147,10 +253,19 @@
             async updateProfile() {
                 this.loading = true;
                 try {
+                    // Создаем копию данных для отправки
+                    const dataToSend = { ...this.editData };
+                    
+                    // Если пароль пустой, удаляем его из запроса, чтобы не вызвать ошибку валидации (min_length)
+                    if (!dataToSend.password) {
+                        delete dataToSend.password;
+                    }
+
                     const response = await fetch('/api/users/me', {
                         method: 'PUT',
+                        credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(this.editData)
+                        body: JSON.stringify(dataToSend)
                     });
 
                     if (response.ok) {
@@ -182,6 +297,7 @@
                     if (typeof Toast !== 'undefined') Toast.info('Загрузка аватара...');
                     const response = await fetch('/api/users/me/avatar', {
                         method: 'POST',
+                        credentials: 'include',
                         body: formData
                     });
 

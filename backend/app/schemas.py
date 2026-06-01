@@ -61,6 +61,8 @@ class VehicleCreate(VehicleBase):
 class VehicleOut(VehicleBase):
     id: UUID
     user_id: UUID
+    model: Optional[str] = None
+    color: Optional[str] = None
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
@@ -98,11 +100,13 @@ class SessionOut(BaseModel):
     id: UUID
     user_id: UUID
     vehicle_id: UUID
+    vehicle_plate: Optional[str] = None
+    vehicle_model: Optional[str] = None
     zone_id: Optional[UUID] = None
     zone_name: Optional[str] = None
     entry_time: datetime
     exit_time: Optional[datetime] = None
-    status: SessionStatus
+    status: str
     cost: Decimal
     
     # Поля для фронтенда (dashboard)
@@ -110,6 +114,16 @@ class SessionOut(BaseModel):
     current_cost: Optional[Decimal] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def coerce_status(cls, v):
+        """Приводит статус к строке, если пришёл Enum из SQLAlchemy."""
+        if isinstance(v, str):
+            return v
+        if hasattr(v, 'value'):
+            return v.value
+        return str(v)
 
 
 class SessionEnd(BaseModel):
@@ -145,8 +159,8 @@ class SessionHistoryItem(BaseModel):
     entry_time: datetime
     exit_time: Optional[datetime] = None
     status: str
-    total_cost: Decimal
-    duration_minutes: int
+    total_cost: Optional[Decimal] = Decimal("0.00")
+    duration_minutes: Optional[int] = 0
     zone_name: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)

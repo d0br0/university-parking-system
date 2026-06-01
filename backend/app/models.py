@@ -108,6 +108,18 @@ class Session(Base):
         "Payment", back_populates="session", lazy="select", cascade="all, delete-orphan"
     )
 
+    @property
+    def vehicle_plate(self):
+        return self.vehicle.license_plate if self.vehicle else None
+
+    @property
+    def vehicle_model(self):
+        return self.vehicle.model if self.vehicle else None
+
+    @property
+    def zone_name(self):
+        return self.zone.name if self.zone else None
+
     def __repr__(self):
         return f"<Session(id={self.id}, user_id={self.user_id}, status={self.status})>"
 

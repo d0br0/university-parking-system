@@ -173,7 +173,7 @@
 
             async loadVehicles() {
                 try {
-                    const response = await fetch('/api/vehicles/');
+                    const response = await fetch('/api/vehicles/', { credentials: 'include' });
                     if (response.ok) {
                         this.vehicles = await response.json();
                         if (this.vehicles.length > 0) {
@@ -189,7 +189,7 @@
                 if (!this.zone) return;
                 try {
                     // Сначала ищем зону по имени в списке всех зон
-                    const zonesRes = await fetch('/api/zones/');
+                    const zonesRes = await fetch('/api/zones/', { credentials: 'include' });
                     if (zonesRes.ok) {
                         const zones = await zonesRes.json();
                         const foundZone = zones.find(z => z.name === this.zone);
@@ -197,7 +197,7 @@
                             this.zoneId = foundZone.id;
                             
                             // Теперь получаем доп. инфо по доступности
-                            const availRes = await fetch(`/api/zones/${this.zoneId}/availability`);
+                            const availRes = await fetch(`/api/zones/${this.zoneId}/availability`, { credentials: 'include' });
                             if (availRes.ok) {
                                 const avail = await availRes.json();
                                 this.freeSpots = avail.available_spots ?? 'неизвестно';
@@ -218,6 +218,7 @@
                 try {
                     const response = await fetch('/api/sessions/start', {
                         method: 'POST',
+                        credentials: 'include',
                         headers: {
                             'Content-Type': 'application/json'
                         },

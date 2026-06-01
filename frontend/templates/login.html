@@ -5,6 +5,10 @@
 {% block content %}
 <div class="auth-container">
     <div class="auth-card">
+        <div id="login-message" class="alert alert-info" style="display: none; margin-bottom: 20px;">
+            <p class="text-center"></p>
+        </div>
+
         <div class="auth-header">
             <h1 class="auth-title">
                 <span class="material-icons">local_parking</span>
@@ -79,6 +83,17 @@
 
 {% block scripts %}
 <script>
+    // Показ сообщения из URL параметров
+    window.addEventListener('DOMContentLoaded', () => {
+        const params = new URLSearchParams(window.location.search);
+        const message = params.get('message');
+        if (message === 'login_required_for_parking') {
+            const alert = document.getElementById('login-message');
+            alert.style.display = 'block';
+            alert.querySelector('p').innerText = 'Пожалуйста, войдите в систему, чтобы начать парковку';
+        }
+    });
+
     // Обработка успешного входа через HTMX
     document.addEventListener('htmx:afterRequest', function(event) {
         if (event.detail.requestConfig.path === '/api/auth/login') {
@@ -86,9 +101,16 @@
                 if (typeof Toast !== 'undefined') {
                     Toast.success('Вход выполнен успешно');
                 }
-                // Успешный вход — редирект на dashboard
+                // Успешный вход — проверяем, есть ли отложенная зона парковки
+                const pendingZone = document.cookie.split('; ').find(row => row.startsWith('pending_zone='));
+                
                 setTimeout(() => {
-                    window.location.href = '/dashboard';
+                    if (pendingZone) {
+                        const zoneName = pendingZone.split('=')[1];
+                        window.location.href = `/park?zone=${zoneName}`;
+                    } else {
+                        window.location.href = '/dashboard';
+                    }
                 }, 800);
             }
         }

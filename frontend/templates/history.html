@@ -144,51 +144,51 @@
                     <span class="spinner"></span>
                     <p>Загрузка чека...</p>
                 </div>
-                <div x-show="!receiptModal.loading && receiptModal.data" class="receipt">
-                    <div class="receipt-header">
-                        <h4>Университетская парковка</h4>
-                        <p>Квитанция № <span x-text="receiptModal.data.session_id"></span></p>
+                    <div x-show="!receiptModal.loading && receiptModal.data" class="receipt">
+                        <div class="receipt-header">
+                            <h4>Университетская парковка</h4>
+                            <p>Квитанция № <span x-text="receiptModal.data?.session_id || ''"></span></p>
+                        </div>
+                        <div class="receipt-body">
+                            <div class="receipt-row">
+                                <span>Госномер:</span>
+                                <strong x-text="receiptModal.data?.vehicle_plate || ''"></strong>
+                            </div>
+                            <div class="receipt-row">
+                                <span>Въезд:</span>
+                                <span x-text="formatDateTime(receiptModal.data?.entry_time)"></span>
+                            </div>
+                            <div class="receipt-row">
+                                <span>Выезд:</span>
+                                <span x-text="receiptModal.data?.exit_time ? formatDateTime(receiptModal.data.exit_time) : '—'"></span>
+                            </div>
+                            <div class="receipt-row">
+                                <span>Длительность:</span>
+                                <span x-text="formatDuration(receiptModal.data?.duration_minutes || 0)"></span>
+                            </div>
+                            <div class="receipt-row">
+                                <span>Тариф:</span>
+                                <span x-text="`${receiptModal.data?.hourly_rate || 0} ₽/час`"></span>
+                            </div>
+                            <div class="receipt-row">
+                                <span>Оплачено часов:</span>
+                                <span x-text="receiptModal.data?.hours_charged || 0"></span>
+                            </div>
+                            <div class="receipt-divider"></div>
+                            <div class="receipt-row total">
+                                <span>ИТОГО:</span>
+                                <strong x-text="`${receiptModal.data?.total_cost || 0} ₽`"></strong>
+                            </div>
+                            <div class="receipt-row" x-show="receiptModal.data?.paid_at">
+                                <span>Оплачено:</span>
+                                <span x-text="formatDateTime(receiptModal.data?.paid_at)"></span>
+                            </div>
+                        </div>
+                        <div class="receipt-footer">
+                            <p>Спасибо за использование парковки!</p>
+                            <p><small>Университетская система платной парковки</small></p>
+                        </div>
                     </div>
-                    <div class="receipt-body">
-                        <div class="receipt-row">
-                            <span>Госномер:</span>
-                            <strong x-text="receiptModal.data.vehicle_plate"></strong>
-                        </div>
-                        <div class="receipt-row">
-                            <span>Въезд:</span>
-                            <span x-text="formatDateTime(receiptModal.data.entry_time)"></span>
-                        </div>
-                        <div class="receipt-row">
-                            <span>Выезд:</span>
-                            <span x-text="receiptModal.data.exit_time ? formatDateTime(receiptModal.data.exit_time) : '—'"></span>
-                        </div>
-                        <div class="receipt-row">
-                            <span>Длительность:</span>
-                            <span x-text="formatDuration(receiptModal.data.duration_minutes)"></span>
-                        </div>
-                        <div class="receipt-row">
-                            <span>Тариф:</span>
-                            <span x-text="`${receiptModal.data.hourly_rate} ₽/час`"></span>
-                        </div>
-                        <div class="receipt-row">
-                            <span>Оплачено часов:</span>
-                            <span x-text="receiptModal.data.hours_charged"></span>
-                        </div>
-                        <div class="receipt-divider"></div>
-                        <div class="receipt-row total">
-                            <span>ИТОГО:</span>
-                            <strong x-text="`${receiptModal.data.total_cost} ₽`"></strong>
-                        </div>
-                        <div class="receipt-row" x-show="receiptModal.data.paid_at">
-                            <span>Оплачено:</span>
-                            <span x-text="formatDateTime(receiptModal.data.paid_at)"></span>
-                        </div>
-                    </div>
-                    <div class="receipt-footer">
-                        <p>Спасибо за использование парковки!</p>
-                        <p><small>Университетская система платной парковки</small></p>
-                    </div>
-                </div>
             </div>
             <div class="modal-footer">
                 <button @click="printReceipt()" class="btn btn-outline">
@@ -243,7 +243,7 @@ document.addEventListener('alpine:init', () => {
                     params.append('date_to', new Date(this.filters.date_to).toISOString());
                 }
                 
-                const response = await fetch(`/api/sessions/history?${params}`);
+                const response = await fetch(`/api/sessions/history?${params}`, { credentials: 'include' });
                 if (response.ok) {
                     const data = await response.json();
                     this.sessions = data.items;
@@ -276,7 +276,7 @@ document.addEventListener('alpine:init', () => {
             this.receiptModal.open = true;
             this.receiptModal.loading = true;
             try {
-                const response = await fetch(`/api/sessions/history/${sessionId}/receipt`);
+                const response = await fetch(`/api/sessions/history/${sessionId}/receipt`, { credentials: 'include' });
                 if (response.ok) {
                     this.receiptModal.data = await response.json();
                 }

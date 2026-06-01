@@ -46,8 +46,16 @@ docker-compose.override.yml
 tmp/
 temp/
 
-# Frontend (если позже добавите npm/pnpm)
+# Frontend
 node_modules/
 dist/
 .next/
 out/
+
+# Uploads & User data
+frontend/static/uploads/
+backend/app/static/reports/
+*.pdf
+*.png
+*.jpg
+*.jpeg

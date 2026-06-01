@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Оплата парковки — Парковка Университета{% endblock %}
+
+{% block content %}
+<div class="container py-8" x-data="paymentPage()">
+    <div class="max-w-xl mx-auto">
+        <div class="dashboard-header text-center mb-8">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-warning bg-opacity-10 text-warning rounded-full mb-4">
+                <span class="material-icons style-lg" style="font-size: 40px;">payments</span>
+            </div>
+            <h1 class="page-title">Оплата парковки</h1>
+            <p class="text-muted">Парковка завершена, пожалуйста, оплатите сессию</p>
+        </div>
+
+        <div class="dashboard-card shadow-xl overflow-hidden border-t-4 border-warning">
+            <div class="card-body p-0">
+                <!-- Детали чека -->
+                <div class="p-6 bg-gray-50 border-bottom">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-muted">Сессия #{{ session_id }}</span>
+                        <span class="badge badge-warning">ОЖИДАЕТ ОПЛАТЫ</span>
+                    </div>
+                    <div class="text-center py-4">
+                        <div class="text-sm text-muted uppercase tracking-wider mb-1">К ОПЛАТЕ</div>
+                        <div class="text-5xl font-black text-primary font-bold" x-text="(receipt.total_cost || 0) + ' ₽'"></div>
+                    </div>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div class="flex justify-between border-b border-dashed pb-2">
+                        <span class="text-muted">Автомобиль:</span>
+                        <strong x-text="receipt.vehicle_plate"></strong>
+                    </div>
+                    <div class="flex justify-between border-b border-dashed pb-2">
+                        <span class="text-muted">Длительность:</span>
+                        <strong x-text="formatDuration(receipt.duration_minutes)"></strong>
+                    </div>
+                    <div class="flex justify-between border-b border-dashed pb-2">
+                        <span class="text-muted">Въезд:</span>
+                        <span x-text="formatDateTime(receipt.entry_time)"></span>
+                    </div>
+                    <div class="flex justify-between border-b border-dashed pb-2">
+                        <span class="text-muted">Выезд:</span>
+                        <span x-text="formatDateTime(receipt.exit_time)"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer p-6 bg-white">
+                <template x-if="!paid">
+                    <button @click="pay" 
+                            class="btn btn-primary w-full py-4 text-xl font-bold flex items-center justify-center gap-3 shadow-lg"
+                            :disabled="loading">
+                        <span x-show="!loading" class="material-icons">credit_card</span>
+                        <span x-show="loading" class="spinner"></span>
+                        <span x-text="loading ? 'Обработка...' : 'Оплатить сейчас'"></span>
+                    </button>
+                </template>
+
+                <template x-if="paid">
+                    <div class="space-y-4 w-full">
+                        <div class="alert alert-success flex items-center gap-3 py-4">
+                            <span class="material-icons">check_circle</span>
+                            <div class="font-bold">Оплата успешно проведена!</div>
+                        </div>
+                        <a href="/dashboard" class="btn btn-outline w-full py-4 font-bold flex items-center justify-center gap-2">
+                            <span class="material-icons">dashboard</span>
+                            Вернуться на главную
+                        </a>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .max-xl { max-width: 32rem; }
+    .border-bottom { border-bottom: 1px solid #edf2f7; }
+    .text-5xl { font-size: 3rem; line-height: 1; }
+    .font-black { font-weight: 900; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function paymentPage() {
+        return {
+            receipt: {},
+            loading: false,
+            paid: false,
+
+            async init() {
+                try {
+                    const res = await fetch(`/api/sessions/history/{{ session_id }}/receipt`, { credentials: 'include' });
+                    if (res.ok) {
+                        this.receipt = await res.json();
+                        if (this.receipt.status === 'paid' || this.receipt.status === 'closed') {
+                            // Если уже оплачено, можно сразу показать кнопку возврата, но статус closed у нас значит "завершено но не факт что оплачено"
+                            // В нашей модели status=closed это финальная точка.
+                        }
+                    }
+                } catch (e) { console.error(e); }
+            },
+
+            async pay() {
+                this.loading = true;
+                try {
+                    // Имитируем оплату
+                    const initRes = await fetch(`/api/payments/init/{{ session_id }}`, { credentials: 'include' });
+                    if (!initRes.ok) throw new Error('Ошибка инициализации');
+                    const initData = await initRes.json();
+                    
+                    const confirmRes = await fetch(`/api/payments/callback/${initData.payment_id}`, { credentials: 'include' });
+                    if (confirmRes.ok) {
+                        this.paid = true;
+                        Toast.success('Оплата прошла успешно!');
+                    }
+                } catch (e) {
+                    Toast.error('Ошибка при оплате');
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            formatDateTime(iso) {
+                if (!iso) return '—';
+                return new Date(iso).toLocaleString('ru-RU');
+            },
+
+            formatDuration(min) {
+                const h = Math.floor(min / 60);
+                const m = min % 60;
+                return `${h}ч ${m}м`;
+            }
+        }
+    }
+</script>
+{% endblock %}

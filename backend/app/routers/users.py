@@ -18,7 +18,6 @@ router = APIRouter(prefix="/users", tags=["Пользователи"])
 # Определяем базовую директорию проекта (на уровень выше app)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 UPLOAD_DIR = BASE_DIR / "frontend" / "static" / "uploads" / "avatars"
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.get("/me", response_model=UserOut)
 async def get_me(current_user: User = Depends(get_current_user)):
@@ -60,6 +59,15 @@ async def upload_avatar(
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Файл должен быть изображением")
     
+    # Убедимся, что папка существует перед сохранением
+    try:
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Не удалось создать директорию для загрузки: {str(e)}"
+        )
+    
     # Генерация уникального имени
     file_ext = os.path.splitext(file.filename)[1]
     if not file_ext:
@@ -69,8 +77,14 @@ async def upload_avatar(
     file_path = UPLOAD_DIR / file_name
     
     # Сохранение файла
-    with file_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Ошибка при сохранении файла: {str(e)}"
+        )
     
     # Удаление старого аватара, если он был
     if current_user.avatar_url:

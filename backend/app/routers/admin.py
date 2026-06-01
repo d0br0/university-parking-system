@@ -82,7 +82,8 @@ async def generate_qr(
 ):
     """Генерация QR-кода для зоны парковки."""
     zone = data.zone
-    url = f"{settings.BASE_URL}/session/start?zone={zone}"
+    # Используем новую точку входа /park
+    url = f"{settings.BASE_URL}/park?zone={zone}"
     
     # Генерация SVG QR-кода
     factory = qrcode.image.svg.SvgImage
@@ -118,7 +119,8 @@ async def download_qr_pdf(
     admin: User = Depends(require_admin)
 ):
     """Генерация и скачивание PDF с QR-кодом для печати."""
-    url = f"{settings.BASE_URL}/session/start?zone={zone}"
+    # Используем новую точку входа /park
+    url = f"{settings.BASE_URL}/park?zone={zone}"
     
     # Генерируем QR для PDF (обычный PIL формат, не SVG)
     qr = qrcode.QRCode(version=1, box_size=10, border=4)

@@ -20,9 +20,21 @@
                 <h2>Профиль</h2>
             </div>
             <div class="card-body">
-                <p><strong>Email:</strong> <span x-text="user?.email || '—'"></span></p>
-                <p><strong>Телефон:</strong> <span x-text="user?.phone || '—'"></span></p>
-                <p><strong>Баланс:</strong> <span class="balance" x-text="`${user?.balance ?? 0} ₽`"></span></p>
+                <div class="profile-avatar-container" style="text-align: center; margin-bottom: 20px;">
+                    <template x-if="user?.avatar_url">
+                        <img :src="user.avatar_url" alt="Avatar" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid #0d6efd; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                    </template>
+                    <template x-if="!user?.avatar_url">
+                        <div style="width: 100px; height: 100px; border-radius: 50%; background: #e9ecef; display: inline-flex; align-items: center; justify-content: center; border: 4px solid #dee2e6;">
+                            <span class="material-icons" style="font-size: 56px; color: #adb5bd;">account_circle</span>
+                        </div>
+                    </template>
+                </div>
+                <div class="profile-info" style="border-top: 1px solid #eee; pt-3;">
+                    <p style="margin-top: 15px;"><strong>Email:</strong> <span x-text="user?.email || '—'"></span></p>
+                    <p><strong>Телефон:</strong> <span x-text="user?.phone || '—'"></span></p>
+                    <p><strong>Баланс:</strong> <span class="balance" x-text="`${user?.balance ?? 0} ₽`" style="color: #198754; font-weight: bold;"></span></p>
+                </div>
             </div>
             <div class="card-footer">
                 <a href="/profile" class="btn btn-outline">Редактировать</a>
@@ -62,39 +74,24 @@
             </div>
         </div>
 
-        <!-- Активная сессия -->
-        <div class="dashboard-card" x-show="activeSession">
-            <div class="card-header card-header-warning">
-                <span class="material-icons">timer</span>
-                <h2>Активная парковка</h2>
-            </div>
-            <div class="card-body">
-                <p><strong>Зона:</strong> <span x-text="activeSession?.zone_name || '—'"></span></p>
-                <p><strong>Начало:</strong> <span x-text="formatTime(activeSession?.started_at)"></span></p>
-                <p><strong>Прошло:</strong> <span x-text="activeSession?.duration_display || '00:00:00'"></span></p>
-                <p><strong>Стоимость:</strong> <span x-text="`${activeSession?.current_cost ?? 0} ₽`"></span></p>
-            </div>
-            <div class="card-footer">
-                <a :href="activeSession ? `/session/${activeSession.id}` : '#'" class="btn btn-warning">
-                    <span class="material-icons">open_in_new</span>
-                    Управление
-                </a>
-            </div>
-        </div>
-
         <!-- Быстрый старт -->
         <div class="dashboard-card">
             <div class="card-header">
                 <span class="material-icons">play_circle</span>
-                <h2>Быстрый старт парковки</h2>
+                <h2>Начало парковки</h2>
             </div>
-            <div class="card-body">
-                <p>Выберите зону, чтобы начать парковку вручную, или используйте QR‑код на парковке.</p>
-                <div class="zone-buttons">
-                    <a href="/session/start?zone=A" class="btn btn-outline">Зона A</a>
-                    <a href="/session/start?zone=B" class="btn btn-outline">Зона B</a>
-                    <a href="/session/start?zone=C" class="btn btn-outline">Зона C</a>
-                </div>
+            <div class="card-body" style="text-align: center; padding: 25px 15px;">
+                <p x-show="!Alpine.store('activeSession')?.data?.id" style="margin-bottom: 20px;">Нажмите кнопку ниже, чтобы выбрать зону и автомобиль для начала новой сессии.</p>
+                <p x-show="Alpine.store('activeSession')?.data?.id" style="margin-bottom: 20px;">У вас есть активная или неоплаченная сессия. Завершите или оплатите её перед началом новой.</p>
+                
+                <a x-show="!Alpine.store('activeSession')?.data?.id" href="/parking/setup" class="btn btn-primary" style="width: 100%; padding: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold; font-size: 1.1rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(13, 110, 253, 0.2);">
+                    <span class="material-icons">directions_car</span>
+                    <span>Начать парковку</span>
+                </a>
+                <a x-show="Alpine.store('activeSession')?.data?.id" :href="`/session/${Alpine.store('activeSession')?.data?.id || ''}`" class="btn btn-warning" style="width: 100%; padding: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold; font-size: 1.1rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(255, 193, 7, 0.2);">
+                    <span class="material-icons">timer</span>
+                    <span>Вернуться к сессии</span>
+                </a>
             </div>
         </div>
     </div>
@@ -134,31 +131,66 @@
 
     <!-- История сессий -->
     <div class="section">
-        <h2 class="section-title">
-            <span class="material-icons">history</span>
-            История парковок
-        </h2>
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="section-title mb-0">
+                <span class="material-icons">history</span>
+                История парковок
+            </h2>
+            <a href="/history" class="btn btn-sm btn-outline">Вся история</a>
+        </div>
         
         <div x-show="loadingHistory" class="loading-state">
             <span class="spinner"></span> Загрузка истории...
         </div>
 
-        <div x-show="!loadingHistory && sessions.length === 0" class="empty-state">
+        <div x-show="!loadingHistory && sessions.length === 0 && !Alpine.store('activeSession')?.data?.id" class="empty-state">
             <p>У вас пока нет завершённых парковок</p>
         </div>
 
-        <div x-show="!loadingHistory && sessions.length > 0" class="history-container">
+        <div class="history-container">
             <ul class="list">
-                <template x-for="session in sessions" :key="session.id">
-                    <li class="list-item">
-                        <div>
-                            <strong x-text="formatDate(session.entry_time)"></strong>
-                            <small x-text="session.vehicle.license_plate"></small>
+                <!-- АКТИВНАЯ СЕССИЯ ПЕРВОЙ В СПИСКЕ -->
+                <template x-if="Alpine.store('activeSession')?.data?.id">
+                    <li class="list-item active-session-item shadow-md" 
+                        @click="window.location.href = `/session/${Alpine.store('activeSession')?.data?.id || ''}`"
+                        style="cursor: pointer; border-left: 5px solid #ffc107; background: rgba(255, 193, 7, 0.05); margin-bottom: 15px;">
+                        <div class="flex items-center gap-3">
+                            <span class="material-icons text-warning animate-pulse">timer</span>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <strong x-text="Alpine.store('activeSession')?.zoneName || 'Активная сессия'"></strong>
+                                    <span class="badge" 
+                                          :class="Alpine.store('activeSession')?.data?.status === 'closed' ? 'badge-danger' : 'badge-warning'"
+                                          style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;"
+                                          x-text="Alpine.store('activeSession')?.data?.status === 'closed' ? 'ОЖИДАЕТ ОПЛАТЫ' : 'АКТИВНА'"></span>
+                                </div>
+                                <small class="text-muted">Въезд: <span x-text="formatTime(Alpine.store('activeSession')?.startedAt)"></span></small>
+                            </div>
                         </div>
                         <div class="text-right">
-                            <span class="cost" x-text="`${session.total_cost} ₽`"></span>
+                            <div class="font-bold text-warning" x-text="Alpine.store('activeSession')?.duration"></div>
+                            <div class="font-semibold" x-text="`${Alpine.store('activeSession')?.cost || 0} ₽`"></div>
+                        </div>
+                    </li>
+                </template>
+
+                <!-- ОСТАЛЬНАЯ ИСТОРИЯ -->
+                <template x-for="session in sessions" :key="session.id">
+                    <li class="list-item" style="cursor: pointer;" @click="window.location.href = `/session/${session.id}`">
+                        <div>
+                            <strong x-text="formatDate(session.entry_time || session.started_at)"></strong>
                             <br>
-                            <small x-text="session.status"></small>
+                            <small class="text-muted" x-text="(session.zone_name || session.zone?.name) || 'Зона не указана'"></small>
+                            <small class="text-muted"> • </small>
+                            <small class="text-muted" x-text="session.vehicle?.license_plate || session.vehicle_plate || 'Номер не указан'"></small>
+                        </div>
+                        <div class="text-right">
+                            <span class="cost font-bold" x-text="`${(session.total_cost || session.cost || 0)} ₽`"></span>
+                            <br>
+                            <small class="badge" 
+                                   :class="session.status === 'closed' || session.status === 'pending' ? 'badge-secondary' : 'badge-success'"
+                                   x-text="session.status === 'closed' ? 'Завершена' : (session.status === 'pending' ? 'Активна' : 'Оплачена')">
+                            </small>
                         </div>
                     </li>
                 </template>
@@ -175,7 +207,6 @@
             user: null,
             vehicles: [],
             sessions: [],
-            activeSession: null,
             loadingHistory: false,
             showVehicleForm: false,
             newVehicle: { license_plate: '', model: '', color: '' },
@@ -183,13 +214,22 @@
             init() {
                 this.loadUser();
                 this.loadVehicles();
-                this.loadActiveSession();
                 this.loadHistory();
+                
+                // Отложенный вызов проверки активной сессии
+                // чтобы Alpine store успел инициализироваться
+                setTimeout(() => {
+                    if (typeof Alpine !== 'undefined' && Alpine.store('activeSession')) {
+                        this.checkActiveSession();
+                    } else {
+                        console.log('Alpine store ещё не готов, пропускаем checkActiveSession');
+                    }
+                }, 500);
             },
 
             async loadUser() {
                 try {
-                    const response = await fetch('/api/auth/me');
+                    const response = await fetch('/api/auth/me', { credentials: 'include' });
                     if (response.ok) {
                         this.user = await response.json();
                     }
@@ -200,7 +240,7 @@
 
             async loadVehicles() {
                 try {
-                    const response = await fetch('/api/vehicles/');
+                    const response = await fetch('/api/vehicles/', { credentials: 'include' });
                     if (response.ok) {
                         this.vehicles = await response.json();
                     }
@@ -209,56 +249,70 @@
                 }
             },
 
-            async loadActiveSession() {
-                try {
-                    const response = await fetch('/api/sessions/active');
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data && data.id) {
-                            this.activeSession = data;
-                            this.updateSessionTimer();
-                        }
-                    }
-                } catch (e) {
-                    console.error('Ошибка загрузки активной сессии:', e);
-                }
-            },
-
             async loadHistory() {
                 this.loadingHistory = true;
                 try {
-                    const response = await fetch('/api/sessions/history?per_page=5');
+                    // Используем простой запрос без параметров для избежания ошибок валидации
+                    const response = await fetch('/api/sessions/history?page=1&per_page=5', { 
+                        credentials: 'include',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
                     if (response.ok) {
                         const data = await response.json();
-                        this.sessions = data.items;
+                        this.sessions = data.items || [];
+                        console.log('История загружена:', this.sessions);
+                    } else {
+                        const errorText = await response.text();
+                        console.error('Ошибка загрузки истории:', response.status, errorText);
+                        this.sessions = [];
                     }
                 } catch (e) {
                     console.error('Ошибка загрузки истории:', e);
+                    this.sessions = [];
                 } finally {
                     this.loadingHistory = false;
+                }
+            },
+
+            async checkActiveSession() {
+                try {
+                    // Проверяем, что Alpine store инициализирован
+                    const store = Alpine.store('activeSession');
+                    if (!store) {
+                        console.warn('Alpine store activeSession не инициализирован');
+                        return;
+                    }
+                    
+                    const response = await fetch('/api/sessions/active', { credentials: 'include' });
+                    if (response.ok) {
+                        const session = await response.json();
+                        if (session && session.id) {
+                            console.log('Активная сессия найдена:', session);
+                            store.setSession({
+                                id: session.id,
+                                status: session.status,
+                                zone_name: session.zone_name || session.zone?.name || 'Зона не указана',
+                                started_at: session.entry_time || session.started_at,
+                                current_cost: session.cost || 0,
+                                entry_time: session.entry_time,
+                                exit_time: session.exit_time
+                            });
+                        } else {
+                            store.clearSession();
+                        }
+                    } else if (response.status === 404) {
+                        store.clearSession();
+                    }
+                } catch (e) {
+                    console.error('Ошибка проверки активной сессии:', e);
                 }
             },
 
             formatDate(iso) {
                 if (!iso) return '—';
                 return new Date(iso).toLocaleDateString('ru-RU');
-            },
-
-            updateSessionTimer() {
-                if (!this.activeSession) return;
-                const interval = setInterval(() => {
-                    if (!this.activeSession) {
-                        clearInterval(interval);
-                        return;
-                    }
-                    const started = new Date(this.activeSession.started_at);
-                    const now = new Date();
-                    const diff = Math.floor((now - started) / 1000);
-                    const hours = Math.floor(diff / 3600);
-                    const minutes = Math.floor((diff % 3600) / 60);
-                    const seconds = diff % 60;
-                    this.activeSession.duration_display = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                }, 1000);
             },
 
             formatTime(iso) {
@@ -275,6 +329,7 @@
 
                     const response = await fetch('/api/vehicles/', {
                         method: 'POST',
+                        credentials: 'include',
                         body: formData
                     });
 

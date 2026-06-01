@@ -7,6 +7,71 @@
 document.addEventListener('alpine:init', () => {
     console.log('Alpine.js инициализирован');
 
+    // Глобальный store для активной сессии (доступен на всех страницах)
+    Alpine.store('activeSession', {
+        data: null,
+        timerInterval: null,
+
+        setSession(sessionData) {
+            this.data = sessionData;
+            this.startTimer();
+        },
+
+        clearSession() {
+            this.data = null;
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+            }
+        },
+
+        startTimer() {
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+            }
+            this.timerInterval = setInterval(() => {
+                if (!this.data) {
+                    clearInterval(this.timerInterval);
+                    this.timerInterval = null;
+                    return;
+                }
+                const started = new Date(this.data.started_at);
+                const now = new Date();
+                const diff = Math.floor((now - started) / 1000);
+                const h = Math.floor(diff / 3600);
+                const m = Math.floor((diff % 3600) / 60);
+                const s = diff % 60;
+                this.data.duration_display =
+                    `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            }, 1000);
+        },
+
+        get isActive() {
+            return this.data !== null && this.data.id &&
+                   (this.data.status === 'pending' || this.data.status === 'paid' || this.data.status === 'closed');
+        },
+
+        get id() {
+            return this.data?.id;
+        },
+
+        get duration() {
+            return this.data?.duration_display || '00:00:00';
+        },
+
+        get cost() {
+            return this.data?.current_cost ?? this.data?.cost ?? 0;
+        },
+
+        get zoneName() {
+            return this.data?.zone_name || '—';
+        },
+
+        get startedAt() {
+            return this.data?.started_at || this.data?.entry_time;
+        }
+    });
+
     // Глобальные данные
     Alpine.store('app', {
         user: null,
@@ -211,14 +276,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedDarkMode !== null) {
         const isDark = savedDarkMode === 'true';
         document.documentElement.classList.toggle('dark', isDark);
-        Alpine.store('app').darkMode = isDark;
+        // Store может быть ещё не инициализирован, используем Alpine.$store если доступно
+        try {
+            if (typeof Alpine !== 'undefined' && Alpine.store) {
+                Alpine.store('app').darkMode = isDark;
+            }
+        } catch (e) {
+            // Store ещё не готов, игнорируем
+        }
     }
 
     // Проверить авторизацию
     if (!isAuthenticated() && !window.location.pathname.includes('/login') && window.location.pathname !== '/') {
         console.log('Пользователь не авторизован, перенаправление на /');
-        // showToast('Требуется авторизация', 'warning');
-        // window.location.href = '/';
     }
 
     // Инициализация Alpine
@@ -293,6 +363,10 @@ window.parkingApp = {
 
 // Экспорт для использования в консоли (отладка)
 if (typeof window !== 'undefined') {
-    window.Alpine = Alpine;
-    window.htmx = htmx;
+    if (typeof Alpine !== 'undefined') {
+        window.Alpine = Alpine;
+    }
+    if (typeof htmx !== 'undefined') {
+        window.htmx = htmx;
+    }
 }

@@ -42,9 +42,9 @@ def init_payment(session_id: UUID, db: Session, user_id: UUID) -> Payment:
         logger.warning(f"Сессия {session_id} не найдена или не принадлежит пользователю {user_id}")
         raise ValueError("Сессия не найдена или доступ запрещён")
 
-    if session.status != "pending":
+    if session.status not in ["pending", "closed"]:
         logger.warning(f"Невозможно инициировать платёж для сессии {session_id} со статусом {session.status}")
-        raise ValueError("Сессия не находится в статусе pending")
+        raise ValueError("Сессия не находится в статусе pending или closed")
 
     # Проверяем, нет ли уже успешного платежа для этой сессии
     existing_success = db.query(Payment).filter(

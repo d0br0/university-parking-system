@@ -13,9 +13,10 @@ from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 
 from app.config import settings
 from app.database import engine, Base, get_db
-from app.models import User, Tariff
+from app.models import User, Tariff, ParkingZone, Session
 from app.auth import get_password_hash, get_current_admin_user, get_current_user
 from app.routers import auth, sessions, payments, admin, vehicles, admin_reports, zones, users
+from app.schemas import SessionStatus
 
 from pathlib import Path
 
@@ -213,6 +214,28 @@ async def startup_event():
     finally:
         db.close()
 
+    # Сидирование зон
+    db = next(get_db())
+    try:
+        zone_count = db.query(ParkingZone).count()
+        if zone_count == 0:
+            standard_tariff = db.query(Tariff).first()
+            for zone_name in ["A", "B", "C"]:
+                new_zone = ParkingZone(
+                    name=f"Зона {zone_name}",
+                    description=f"Парковочная зона {zone_name}",
+                    total_spots=50,
+                    tariff_id=standard_tariff.id if standard_tariff else None
+                )
+                db.add(new_zone)
+            db.commit()
+            logger.info("✅ Базовые зоны A, B, C добавлены")
+    except Exception as e:
+        logger.error(f"❌ Ошибка при сидировании зон: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
     # Сидирование администратора
     db = next(get_db())
     try:
@@ -253,6 +276,97 @@ async def health_check():
 async def root(request: Request):
     """Главная страница - логин."""
     return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.get("/park")
+async def park_qr_entry(
+    request: Request, 
+    zone: str = None, 
+    db: Session = Depends(get_db)
+):
+    """
+    Точка входа по QR-коду.
+    https://parkovka.dobro-web.ru/park?zone=A
+    """
+    from fastapi.responses import RedirectResponse
+    
+    # 1. Проверяем авторизацию через куки напрямую
+    token = request.cookies.get("access_token")
+    user = None
+    if token:
+        try:
+            from app.auth import decode_token
+            payload = decode_token(token)
+            user_id = payload.get("sub")
+            if user_id:
+                user = db.query(User).filter(User.id == user_id).first()
+        except Exception:
+            user = None
+
+    # 2. Если пользователь НЕ авторизован
+    if not user:
+        response = RedirectResponse(url="/?message=login_required_for_parking")
+        if zone:
+            response.set_cookie(key="pending_zone", value=zone, max_age=900)
+        return response
+
+    # 3. Если зона не указана, отправляем на страницу настройки
+    if not zone:
+        return RedirectResponse(url="/parking/setup")
+
+    # 4. Если пользователь авторизован, проверяем наличие автомобиля
+    from app.models import Vehicle
+    vehicle = db.query(Vehicle).filter(Vehicle.user_id == user.id, Vehicle.is_active == True).first()
+    
+    if not vehicle:
+        response = RedirectResponse(url="/profile?message=add_vehicle_first")
+        response.set_cookie(key="pending_zone", value=zone, max_age=900)
+        return response
+
+    # 5. Проверяем, нет ли уже активной сессии
+    from app.models import Session as ParkingSession
+    active_session = db.query(ParkingSession).filter(
+        ParkingSession.user_id == user.id,
+        ParkingSession.status == "pending"
+    ).first()
+
+    if active_session:
+        return RedirectResponse(url=f"/session/{active_session.id}")
+
+    # 6. АВТОМАТИЧЕСКИЙ СТАРТ (только если зона пришла из QR)
+    from app.models import ParkingZone
+    parking_zone = db.query(ParkingZone).filter(
+        (ParkingZone.name == zone) | (ParkingZone.name == f"Зона {zone}")
+    ).first()
+    
+    if not parking_zone:
+        return RedirectResponse(url="/parking/setup?error=zone_not_found")
+
+    new_session = ParkingSession(
+        user_id=user.id,
+        vehicle_id=vehicle.id,
+        zone_id=parking_zone.id,
+        entry_time=datetime.now(timezone.utc),
+        status="pending",
+        cost=Decimal("0.00")
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+
+    return RedirectResponse(url=f"/session/{new_session.id}")
+
+
+@app.get("/parking/setup")
+async def parking_setup(request: Request):
+    """Страница настройки парковки (выбор зоны и авто)."""
+    return templates.TemplateResponse("parking_setup.html", {"request": request})
+
+
+@app.get("/session/{session_id}/payment")
+async def session_payment_page(request: Request, session_id: str):
+    """Страница оплаты после завершения сессии."""
+    return templates.TemplateResponse("payment_receipt.html", {"request": request, "session_id": session_id})
 
 
 @app.get("/dashboard")

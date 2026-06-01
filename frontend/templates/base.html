@@ -9,26 +9,85 @@
     <link rel="stylesheet" href="/static/css/history.css">
     <!-- CDN для HTMX 2.x -->
     <script src="https://unpkg.com/htmx.org@2.0.0" integrity="sha384-wS5l5IKJBvK6sPTKa2WZ1js3d947pvWXbPJ1OmWfEuxLgeHcEbjUUA5i9V5ZkpCw" crossorigin="anonymous" defer></script>
-    <!-- CDN для Alpine.js 3.x - загружаем до использования -->
+    <!-- CDN для Alpine.js 3.x -->
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <!-- Основной JS приложения - загружаем с defer в head, чтобы store определился вовремя -->
+    <script src="/static/js/app.js" defer></script>
     <!-- Иконки Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🅿️</text></svg>">
+    <style>
+        [x-cloak] { display: none !important; }
+        .nav-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .profile-link {
+            display: flex !important;
+            align-items: center;
+        }
+    </style>
 </head>
-<body class="bg-bg text-text" x-data="{ 
-        menuOpen: false, 
+<body class="bg-bg text-text" x-data="{
+        menuOpen: false,
         user: null,
+        userLoaded: false,
         init() {
             // Загружаем данные пользователя из API
             fetch('/api/auth/me', { credentials: 'include' })
                 .then(r => r.ok ? r.json() : null)
-                .then(data => { 
-                    this.user = data; 
+                .then(data => {
+                    this.user = data;
+                    this.userLoaded = true;
                 })
-                .catch(() => { this.user = null; });
+                .catch(() => {
+                    this.user = null;
+                    this.userLoaded = true;
+                });
+            
+            // Загружаем активную сессию (если есть) в глобальный store
+            this.loadActiveSession();
+        },
+        async loadActiveSession() {
+            try {
+                const response = await fetch('/api/sessions/active', { credentials: 'include' });
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data && data.id && (data.status === 'pending' || data.status === 'paid' || data.status === 'closed')) {
+                        const sessionData = {
+                            ...data,
+                            started_at: data.started_at || data.entry_time,
+                            current_cost: data.current_cost || data.cost || 0
+                        };
+                        // Убедимся, что store инициализирован
+                        if (typeof Alpine !== 'undefined' && Alpine.store('activeSession')) {
+                            Alpine.store('activeSession').setSession(sessionData);
+                        } else {
+                            // Если Alpine еще не готов, ждем его инициализации
+                            document.addEventListener('alpine:init', () => {
+                                Alpine.store('activeSession').setSession(sessionData);
+                            }, { once: true });
+                        }
+                    } else {
+                        if (typeof Alpine !== 'undefined' && Alpine.store('activeSession')) {
+                            Alpine.store('activeSession').clearSession();
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Ошибка загрузки активной сессии:', e);
+            }
+        },
+        isSessionPage() {
+            return window.location.pathname.startsWith('/session/');
         }
     }">
-    <nav class="navbar" x-show="user">
+    <nav class="navbar" x-show="userLoaded" x-cloak>
         <div class="container">
             <div class="nav-content">
                 <a href="/" class="logo">
@@ -39,6 +98,15 @@
                     <span class="material-icons">menu</span>
                 </button>
                 <div class="nav-links" :class="{ 'open': menuOpen }">
+                    <a href="/profile" class="nav-link profile-link">
+                        <template x-if="user?.avatar_url">
+                            <img :src="user.avatar_url" alt="Avatar" class="nav-avatar">
+                        </template>
+                        <template x-if="!user?.avatar_url">
+                            <span class="material-icons">account_circle</span>
+                        </template>
+                        <span>Профиль</span>
+                    </a>
                     <a href="/dashboard" class="nav-link">
                         <span class="material-icons">dashboard</span>
                         Панель
@@ -66,6 +134,24 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Sticky-виджет активной сессии -->
+    <template x-if="Alpine.store('activeSession')?.data?.id && !isSessionPage()">
+        <div class="active-session-widget"
+             @click="window.location.href = `/session/${Alpine.store('activeSession')?.data?.id || ''}`"
+             style="cursor: pointer;"
+             x-cloak>
+            <div class="widget-content">
+                <span class="material-icons widget-icon">timer</span>
+                <div class="widget-info">
+                    <span class="widget-title" x-text="Alpine.store('activeSession')?.data?.status === 'closed' ? 'Ожидает оплаты' : 'Активная парковка'"></span>
+                    <span class="widget-timer" x-text="Alpine.store('activeSession')?.duration"></span>
+                </div>
+                <span class="widget-cost" x-text="`${Alpine.store('activeSession')?.cost || 0} ₽`"></span>
+                <span class="material-icons widget-arrow">chevron_right</span>
+            </div>
+        </div>
+    </template>
+
     <footer class="footer">
         <div class="container">
             <p>© 2026 Университетская система платной парковки. Все права защищены.</p>
@@ -77,7 +163,6 @@
     </footer>
 
     <script src="/static/js/toast.js"></script>
-    <script src="/static/js/app.js"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
