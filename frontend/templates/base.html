@@ -43,6 +43,13 @@
                 .then(data => {
                     this.user = data;
                     this.userLoaded = true;
+                    // Принудительно обновляем статус активной сессии
+                    if (this.user && typeof Alpine !== 'undefined') {
+                        const store = Alpine.store('activeSession');
+                        if (store && typeof store.load === 'function') {
+                            store.load();
+                        }
+                    }
                 })
                 .catch(() => {
                     this.user = null;

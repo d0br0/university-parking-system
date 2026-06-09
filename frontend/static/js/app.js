@@ -11,13 +11,10 @@ document.addEventListener('alpine:init', () => {
     Alpine.store('activeSession', {
         data: null,
         timerInterval: null,
-
-        init() {
-            console.log('Инициализация activeSession store');
-            this.load();
-        },
+        loading: false,
 
         async load() {
+            if (this.loading) return;
             this.loading = true;
             console.log('Запрос активной сессии: /api/sessions/active');
             try {
@@ -107,6 +104,9 @@ document.addEventListener('alpine:init', () => {
             return this.data?.started_at || this.data?.entry_time;
         }
     });
+
+    // Явно вызываем загрузку сессии после определения store
+    Alpine.store('activeSession').load();
 
     // Глобальные данные
     Alpine.store('app', {
