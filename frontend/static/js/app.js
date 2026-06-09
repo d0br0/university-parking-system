@@ -4,14 +4,18 @@
  */
 
 // ===== ИНИЦИАЛИЗАЦИЯ ALPINE =====
-document.addEventListener('alpine:init', () => {
-    console.log('Alpine.js инициализирован');
+function initParkingApp() {
+    if (window.parkingAppInitialized) return;
+    window.parkingAppInitialized = true;
+    
+    console.log('Инициализация Alpine Stores...');
 
     // Глобальный store для активной сессии (доступен на всех страницах)
     Alpine.store('activeSession', {
         data: null,
         timerInterval: null,
         loading: false,
+        formattedTime: '00:00:00',
 
         async load() {
             if (this.loading) return;
@@ -25,15 +29,14 @@ document.addEventListener('alpine:init', () => {
                     if (data && data.id) {
                         this.setSession(data);
                     } else {
-                        console.log('Активная сессия не найдена (null или нет id)');
+                        console.log('Активная сессия не найдена');
                         this.clearSession();
                     }
                 } else {
-                    console.warn(`Ошибка API активной сессии: ${response.status}`);
                     this.clearSession();
                 }
             } catch (e) {
-                console.error('Ошибка загрузки активной сессии в store:', e);
+                console.error('Ошибка загрузки активной сессии:', e);
                 this.clearSession();
             } finally {
                 this.loading = false;
@@ -41,12 +44,7 @@ document.addEventListener('alpine:init', () => {
         },
 
         setSession(sessionData) {
-            console.log('Установка активной сессии в store:', sessionData);
-            this.data = {
-                ...sessionData,
-                started_at: sessionData.started_at || sessionData.entry_time,
-                current_cost: sessionData.current_cost || sessionData.cost || 0
-            };
+            this.data = sessionData;
             this.startTimer();
         },
 
@@ -56,59 +54,43 @@ document.addEventListener('alpine:init', () => {
                 clearInterval(this.timerInterval);
                 this.timerInterval = null;
             }
+            this.formattedTime = '00:00:00';
         },
 
         startTimer() {
-            if (this.timerInterval) {
-                clearInterval(this.timerInterval);
-            }
-            this.timerInterval = setInterval(() => {
-                if (!this.data) {
-                    clearInterval(this.timerInterval);
-                    this.timerInterval = null;
-                    return;
-                }
-                const started = new Date(this.data.started_at);
+            if (this.timerInterval) clearInterval(this.timerInterval);
+            const update = () => {
+                if (!this.data) return;
+                const started = new Date(this.data.start_time || this.data.entry_time);
                 const now = new Date();
                 const diff = Math.floor((now - started) / 1000);
-                const h = Math.floor(diff / 3600);
-                const m = Math.floor((diff % 3600) / 60);
-                const s = diff % 60;
-                this.data.duration_display =
-                    `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-            }, 1000);
-        },
-
-        get isActive() {
-            return this.data !== null && this.data.id &&
-                   (this.data.status === 'pending' || this.data.status === 'paid' || this.data.status === 'closed');
-        },
-
-        get id() {
-            return this.data?.id;
-        },
-
-        get duration() {
-            return this.data?.duration_display || '00:00:00';
+                const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+                const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+                const s = (diff % 60).toString().padStart(2, '0');
+                this.formattedTime = `${h}:${m}:${s}`;
+            };
+            update();
+            this.timerInterval = setInterval(update, 1000);
         },
 
         get cost() {
-            return this.data?.current_cost ?? this.data?.cost ?? 0;
-        },
-
-        get zoneName() {
-            return this.data?.zone_name || '—';
-        },
-
-        get startedAt() {
-            return this.data?.started_at || this.data?.entry_time;
+            return this.data?.current_cost || this.data?.cost || 0;
         }
     });
 
     // Явно вызываем загрузку сессии после определения store
     Alpine.store('activeSession').load();
+}
 
-    // Глобальные данные
+// Поддержка разных сценариев загрузки
+if (typeof Alpine !== 'undefined') {
+    initParkingApp();
+} else {
+    document.addEventListener('alpine:init', initParkingApp);
+}
+
+// Глобальные данные
+document.addEventListener('alpine:init', () => {
     Alpine.store('app', {
         user: null,
         token: null,

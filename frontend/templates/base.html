@@ -9,10 +9,10 @@
     <link rel="stylesheet" href="/static/css/history.css">
     <!-- CDN для HTMX 2.x -->
     <script src="https://unpkg.com/htmx.org@2.0.0" integrity="sha384-wS5l5IKJBvK6sPTKa2WZ1js3d947pvWXbPJ1OmWfEuxLgeHcEbjUUA5i9V5ZkpCw" crossorigin="anonymous" defer></script>
+    <!-- Основной JS приложения - загружаем ПЕРЕД Alpine, чтобы stores успели определиться -->
+    <script src="/static/js/app.js" defer></script>
     <!-- CDN для Alpine.js 3.x -->
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <!-- Основной JS приложения - загружаем с defer в head, чтобы store определился вовремя -->
-    <script src="/static/js/app.js" defer></script>
     <!-- Иконки Material Icons -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🅿️</text></svg>">
@@ -43,13 +43,6 @@
                 .then(data => {
                     this.user = data;
                     this.userLoaded = true;
-                    // Принудительно обновляем статус активной сессии
-                    if (this.user && typeof Alpine !== 'undefined') {
-                        const store = Alpine.store('activeSession');
-                        if (store && typeof store.load === 'function') {
-                            store.load();
-                        }
-                    }
                 })
                 .catch(() => {
                     this.user = null;

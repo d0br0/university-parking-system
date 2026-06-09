@@ -92,11 +92,11 @@
 
                     <!-- Кнопка возврата к активной сессии появляется только если сессия есть -->
                     <template x-if="Alpine.store('activeSession')?.data?.id">
-                        <a :href="`/session/${Alpine.store('activeSession')?.data?.id}`" 
+                        <a :href="`/session/${Alpine.store('activeSession').data.id}`" 
                            class="btn btn-warning animate-pulse-slow" 
                            style="width: 100%; padding: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold; font-size: 1.1rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(255, 193, 7, 0.3); border: 2px solid #e5a500;">
                             <span class="material-icons">timer</span>
-                            <span>Вернуться к текущей (<span x-text="Alpine.store('activeSession')?.cost || 0"></span> ₽)</span>
+                            <span>Вернуться к текущей (<span x-text="Alpine.store('activeSession').formattedTime"></span>)</span>
                         </a>
                     </template>
                 </div>
