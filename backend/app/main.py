@@ -168,15 +168,9 @@ async def startup_event():
     logger.info(f"DEBUG режим: {settings.DEBUG}")
     logger.info(f"База данных: {settings.DATABASE_URL}")
 
-    # ВРЕМЕННО: Удаление всех таблиц для исправления типов данных (UUID vs VARCHAR)
-    try:
-        Base.metadata.drop_all(bind=engine)
-        logger.info("🗑️ Все старые таблицы удалены")
-    except Exception as e:
-        logger.error(f"❌ Ошибка при удалении таблиц: {e}")
-
     # Создание таблиц (если не существуют)
     try:
+        # Base.metadata.drop_all(bind=engine) # Удалено: таблицы теперь стабильны
         Base.metadata.create_all(bind=engine)
         logger.info("✅ Таблицы БД созданы/проверены")
     except Exception as e:

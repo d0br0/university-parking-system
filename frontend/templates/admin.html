@@ -53,11 +53,9 @@
                 <label for="zone-select">Выберите зону парковки:</label>
                 <select x-model="selectedZone" id="zone-select" class="form-control" required>
                     <option value="" disabled selected>Выберите зону...</option>
-                    <option value="A1">Зона A1</option>
-                    <option value="A2">Зона A2</option>
-                    <option value="B1">Зона B1</option>
-                    <option value="B2">Зона B2</option>
-                    <option value="C1">Зона C1</option>
+                    <option value="A">Зона A</option>
+                    <option value="B">Зона B</option>
+                    <option value="C">Зона C</option>
                 </select>
             </div>
             <button type="submit" class="btn btn-primary btn-large" :disabled="loadingQR">
