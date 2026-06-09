@@ -227,16 +227,6 @@
                 this.loadUser();
                 this.loadVehicles();
                 this.loadHistory();
-                
-                // Отложенный вызов проверки активной сессии
-                // чтобы Alpine store успел инициализироваться
-                setTimeout(() => {
-                    if (typeof Alpine !== 'undefined' && Alpine.store('activeSession')) {
-                        this.checkActiveSession();
-                    } else {
-                        console.log('Alpine store ещё не готов, пропускаем checkActiveSession');
-                    }
-                }, 500);
             },
 
             async loadUser() {
@@ -264,61 +254,18 @@
             async loadHistory() {
                 this.loadingHistory = true;
                 try {
-                    // Используем простой запрос без параметров для избежания ошибок валидации
                     const response = await fetch('/api/sessions/history?page=1&per_page=5', { 
-                        credentials: 'include',
-                        headers: {
-                            'Accept': 'application/json'
-                        }
+                        credentials: 'include'
                     });
                     if (response.ok) {
                         const data = await response.json();
                         this.sessions = data.items || [];
-                        console.log('История загружена:', this.sessions);
-                    } else {
-                        const errorText = await response.text();
-                        console.error('Ошибка загрузки истории:', response.status, errorText);
-                        this.sessions = [];
                     }
                 } catch (e) {
                     console.error('Ошибка загрузки истории:', e);
                     this.sessions = [];
                 } finally {
                     this.loadingHistory = false;
-                }
-            },
-
-            async checkActiveSession() {
-                try {
-                    // Проверяем, что Alpine store инициализирован
-                    const store = Alpine.store('activeSession');
-                    if (!store) {
-                        console.warn('Alpine store activeSession не инициализирован');
-                        return;
-                    }
-                    
-                    const response = await fetch('/api/sessions/active', { credentials: 'include' });
-                    if (response.ok) {
-                        const session = await response.json();
-                        if (session && session.id) {
-                            console.log('Активная сессия найдена:', session);
-                            store.setSession({
-                                id: session.id,
-                                status: session.status,
-                                zone_name: session.zone_name || session.zone?.name || 'Зона не указана',
-                                started_at: session.entry_time || session.started_at,
-                                current_cost: session.cost || 0,
-                                entry_time: session.entry_time,
-                                exit_time: session.exit_time
-                            });
-                        } else {
-                            store.clearSession();
-                        }
-                    } else if (response.status === 404) {
-                        store.clearSession();
-                    }
-                } catch (e) {
-                    console.error('Ошибка проверки активной сессии:', e);
                 }
             },
 

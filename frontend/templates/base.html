@@ -48,40 +48,6 @@
                     this.user = null;
                     this.userLoaded = true;
                 });
-            
-            // Загружаем активную сессию (если есть) в глобальный store
-            this.loadActiveSession();
-        },
-        async loadActiveSession() {
-            try {
-                const response = await fetch('/api/sessions/active', { credentials: 'include' });
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    if (data && data.id && (data.status === 'pending' || data.status === 'paid' || data.status === 'closed')) {
-                        const sessionData = {
-                            ...data,
-                            started_at: data.started_at || data.entry_time,
-                            current_cost: data.current_cost || data.cost || 0
-                        };
-                        // Убедимся, что store инициализирован
-                        if (typeof Alpine !== 'undefined' && Alpine.store('activeSession')) {
-                            Alpine.store('activeSession').setSession(sessionData);
-                        } else {
-                            // Если Alpine еще не готов, ждем его инициализации
-                            document.addEventListener('alpine:init', () => {
-                                Alpine.store('activeSession').setSession(sessionData);
-                            }, { once: true });
-                        }
-                    } else {
-                        if (typeof Alpine !== 'undefined' && Alpine.store('activeSession')) {
-                            Alpine.store('activeSession').clearSession();
-                        }
-                    }
-                }
-            } catch (e) {
-                console.error('Ошибка загрузки активной сессии:', e);
-            }
         },
         isSessionPage() {
             return window.location.pathname.startsWith('/session/');

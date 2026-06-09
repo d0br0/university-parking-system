@@ -12,8 +12,37 @@ document.addEventListener('alpine:init', () => {
         data: null,
         timerInterval: null,
 
+        init() {
+            console.log('Инициализация activeSession store');
+            this.load();
+        },
+
+        async load() {
+            this.loading = true;
+            try {
+                const response = await fetch('/api/sessions/active', { credentials: 'include' });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.id) {
+                        this.setSession(data);
+                    } else {
+                        this.clearSession();
+                    }
+                }
+            } catch (e) {
+                console.error('Ошибка загрузки активной сессии в store:', e);
+            } finally {
+                this.loading = false;
+            }
+        },
+
         setSession(sessionData) {
-            this.data = sessionData;
+            console.log('Установка активной сессии в store:', sessionData);
+            this.data = {
+                ...sessionData,
+                started_at: sessionData.started_at || sessionData.entry_time,
+                current_cost: sessionData.current_cost || sessionData.cost || 0
+            };
             this.startTimer();
         },
 
@@ -286,10 +315,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Проверить авторизацию
-    if (!isAuthenticated() && !window.location.pathname.includes('/login') && window.location.pathname !== '/') {
-        console.log('Пользователь не авторизован, перенаправление на /');
-    }
+    // Проверить авторизацию - удалено, так как access_token является httpOnly
+    // и недоступен из JS. Сервер сам выполнит редирект если нужно.
+    console.log('Инициализация приложения завершена');
 
     // Инициализация Alpine
     if (typeof Alpine === 'undefined') {

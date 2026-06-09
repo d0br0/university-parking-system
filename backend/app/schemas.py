@@ -107,11 +107,11 @@ class SessionOut(BaseModel):
     entry_time: datetime
     exit_time: Optional[datetime] = None
     status: str
-    cost: Decimal
+    cost: Optional[Decimal] = Decimal("0.00")
     
     # Поля для фронтенда (dashboard)
     started_at: Optional[datetime] = None
-    current_cost: Optional[Decimal] = None
+    current_cost: Optional[Decimal] = Decimal("0.00")
 
     model_config = ConfigDict(from_attributes=True)
 
