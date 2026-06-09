@@ -19,18 +19,25 @@ document.addEventListener('alpine:init', () => {
 
         async load() {
             this.loading = true;
+            console.log('Запрос активной сессии: /api/sessions/active');
             try {
                 const response = await fetch('/api/sessions/active', { credentials: 'include' });
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('Ответ /api/sessions/active:', data);
                     if (data && data.id) {
                         this.setSession(data);
                     } else {
+                        console.log('Активная сессия не найдена (null или нет id)');
                         this.clearSession();
                     }
+                } else {
+                    console.warn(`Ошибка API активной сессии: ${response.status}`);
+                    this.clearSession();
                 }
             } catch (e) {
                 console.error('Ошибка загрузки активной сессии в store:', e);
+                this.clearSession();
             } finally {
                 this.loading = false;
             }
