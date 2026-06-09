@@ -78,20 +78,32 @@
         <div class="dashboard-card">
             <div class="card-header">
                 <span class="material-icons">play_circle</span>
-                <h2>Начало парковки</h2>
+                <h2>Управление парковкой</h2>
             </div>
             <div class="card-body" style="text-align: center; padding: 25px 15px;">
-                <p x-show="!Alpine.store('activeSession')?.data?.id" style="margin-bottom: 20px;">Нажмите кнопку ниже, чтобы выбрать зону и автомобиль для начала новой сессии.</p>
-                <p x-show="Alpine.store('activeSession')?.data?.id" style="margin-bottom: 20px;">У вас есть активная или неоплаченная сессия. Завершите или оплатите её перед началом новой.</p>
+                <div class="flex flex-col gap-3">
+                    <!-- Кнопка начала новой парковки всегда доступна, если нет блокирующей сессии -->
+                    <a href="/parking/setup" 
+                       class="btn btn-primary" 
+                       style="width: 100%; padding: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold; font-size: 1.1rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(13, 110, 253, 0.2);">
+                        <span class="material-icons">add_circle</span>
+                        <span>Начать новую парковку</span>
+                    </a>
+
+                    <!-- Кнопка возврата к активной сессии появляется только если сессия есть -->
+                    <template x-if="Alpine.store('activeSession')?.data?.id">
+                        <a :href="`/session/${Alpine.store('activeSession')?.data?.id}`" 
+                           class="btn btn-warning animate-pulse-slow" 
+                           style="width: 100%; padding: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold; font-size: 1.1rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(255, 193, 7, 0.3); border: 2px solid #e5a500;">
+                            <span class="material-icons">timer</span>
+                            <span>Вернуться к текущей (<span x-text="Alpine.store('activeSession')?.cost || 0"></span> ₽)</span>
+                        </a>
+                    </template>
+                </div>
                 
-                <a x-show="!Alpine.store('activeSession')?.data?.id" href="/parking/setup" class="btn btn-primary" style="width: 100%; padding: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold; font-size: 1.1rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(13, 110, 253, 0.2);">
-                    <span class="material-icons">directions_car</span>
-                    <span>Начать парковку</span>
-                </a>
-                <a x-show="Alpine.store('activeSession')?.data?.id" :href="`/session/${Alpine.store('activeSession')?.data?.id || ''}`" class="btn btn-warning" style="width: 100%; padding: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold; font-size: 1.1rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(255, 193, 7, 0.2);">
-                    <span class="material-icons">timer</span>
-                    <span>Вернуться к сессии</span>
-                </a>
+                <p class="text-muted mt-3" style="font-size: 0.85rem;" x-show="Alpine.store('activeSession')?.data?.id">
+                    У вас есть незавершенная сессия. Вы можете вернуться к ней или начать новую (старая будет завершена автоматически при въезде в новую зону).
+                </p>
             </div>
         </div>
     </div>
@@ -153,23 +165,23 @@
                 <template x-if="Alpine.store('activeSession')?.data?.id">
                     <li class="list-item active-session-item shadow-md" 
                         @click="window.location.href = `/session/${Alpine.store('activeSession')?.data?.id || ''}`"
-                        style="cursor: pointer; border-left: 5px solid #ffc107; background: rgba(255, 193, 7, 0.05); margin-bottom: 15px;">
+                        style="cursor: pointer; border-left: 5px solid #ffc107; background: rgba(255, 193, 7, 0.1); margin-bottom: 15px; transition: transform 0.2s;">
                         <div class="flex items-center gap-3">
-                            <span class="material-icons text-warning animate-pulse">timer</span>
+                            <span class="material-icons text-warning animate-spin-slow">timer</span>
                             <div>
                                 <div class="flex items-center gap-2">
                                     <strong x-text="Alpine.store('activeSession')?.zoneName || 'Активная сессия'"></strong>
                                     <span class="badge" 
                                           :class="Alpine.store('activeSession')?.data?.status === 'closed' ? 'badge-danger' : 'badge-warning'"
-                                          style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;"
-                                          x-text="Alpine.store('activeSession')?.data?.status === 'closed' ? 'ОЖИДАЕТ ОПЛАТЫ' : 'АКТИВНА'"></span>
+                                          style="font-size: 0.7rem; padding: 2px 8px; border-radius: 6px; font-weight: 800;"
+                                          x-text="Alpine.store('activeSession')?.data?.status === 'closed' ? 'ОЖИДАЕТ ОПЛАТЫ' : 'В ПРОЦЕССЕ'"></span>
                                 </div>
-                                <small class="text-muted">Въезд: <span x-text="formatTime(Alpine.store('activeSession')?.startedAt)"></span></small>
+                                <small class="text-muted">Начало: <span x-text="formatTime(Alpine.store('activeSession')?.startedAt)"></span></small>
                             </div>
                         </div>
                         <div class="text-right">
-                            <div class="font-bold text-warning" x-text="Alpine.store('activeSession')?.duration"></div>
-                            <div class="font-semibold" x-text="`${Alpine.store('activeSession')?.cost || 0} ₽`"></div>
+                            <div class="font-bold text-warning" style="font-size: 1.1rem;" x-text="Alpine.store('activeSession')?.duration"></div>
+                            <div class="font-semibold" style="color: var(--success);" x-text="`${Alpine.store('activeSession')?.cost || 0} ₽`"></div>
                         </div>
                     </li>
                 </template>

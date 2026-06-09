@@ -62,16 +62,6 @@
                         <span>Тариф</span>
                         <strong x-text="`${tariff.price_per_hour || 150} ₽/час`"></strong>
                     </div>
-                    <div class="cost-item">
-                        <span>Дневной лимит</span>
-                        <strong x-text="`${tariff.daily_cap || 1200} ₽`"></strong>
-                    </div>
-                </div>
-                <div class="cost-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" :style="`width: ${costProgress}%`"></div>
-                    </div>
-                    <small x-text="`Использовано ${costProgress}% дневного лимита`"></small>
                 </div>
             </div>
         </div>
@@ -201,7 +191,7 @@
     document.addEventListener('alpine:init', () => {
         Alpine.data('activeSession', () => ({
             session: {},
-            tariff: { price_per_hour: 150, daily_cap: 1200 },
+            tariff: { price_per_hour: 150 },
             timerInterval: null,
             ending: false,
             validUntil: '',
@@ -344,13 +334,6 @@
                     closed: 'Завершено',
                 };
                 return map[status] || 'Неизвестно';
-            },
-
-            get costProgress() {
-                const cost = this.session.cost || 0;
-                const cap = this.tariff.daily_cap || 1200;
-                const progress = (cost / cap) * 100;
-                return Math.min(100, Math.round(progress));
             },
 
             formatTime(iso) {

@@ -47,10 +47,8 @@ def calculate_cost(entry_time: datetime, exit_time: datetime, tariff: Tariff) ->
 
     # Рассчитываем стоимость
     price_per_hour = Decimal(str(tariff.price_per_hour))
-    daily_cap = Decimal(str(tariff.daily_cap))
     
-    raw_cost = Decimal(str(chargeable_hours)) * price_per_hour
-    capped_cost = min(raw_cost, daily_cap)
+    final_cost = Decimal(str(chargeable_hours)) * price_per_hour
 
     # Округление результата до 2 знаков после запятой
-    return float(capped_cost.quantize(Decimal("0.01")))
+    return float(final_cost.quantize(Decimal("0.01")))

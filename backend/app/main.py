@@ -319,7 +319,9 @@ async def park_qr_entry(
     vehicle = db.query(Vehicle).filter(Vehicle.user_id == user.id, Vehicle.is_active == True).first()
     
     if not vehicle:
-        response = RedirectResponse(url="/profile?message=add_vehicle_first")
+        response = RedirectResponse(url="/dashboard")
+        from app.middleware.flash import flash, FlashType
+        flash(response, "Для начала парковки необходимо добавить автомобиль в профиле", FlashType.WARNING)
         response.set_cookie(key="pending_zone", value=zone, max_age=900)
         return response
 

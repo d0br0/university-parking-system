@@ -85,9 +85,12 @@
         },
         isSessionPage() {
             return window.location.pathname.startsWith('/session/');
+        },
+        isAuthPage() {
+            return window.location.pathname === '/' || window.location.pathname === '/register';
         }
     }">
-    <nav class="navbar" x-show="userLoaded" x-cloak>
+    <nav class="navbar" x-show="userLoaded && !isAuthPage()" x-cloak>
         <div class="container">
             <div class="nav-content">
                 <a href="/" class="logo">
@@ -133,24 +136,6 @@
     <main class="container">
         {% block content %}{% endblock %}
     </main>
-
-    <!-- Sticky-виджет активной сессии -->
-    <template x-if="Alpine.store('activeSession')?.data?.id && !isSessionPage()">
-        <div class="active-session-widget"
-             @click="window.location.href = `/session/${Alpine.store('activeSession')?.data?.id || ''}`"
-             style="cursor: pointer;"
-             x-cloak>
-            <div class="widget-content">
-                <span class="material-icons widget-icon">timer</span>
-                <div class="widget-info">
-                    <span class="widget-title" x-text="Alpine.store('activeSession')?.data?.status === 'closed' ? 'Ожидает оплаты' : 'Активная парковка'"></span>
-                    <span class="widget-timer" x-text="Alpine.store('activeSession')?.duration"></span>
-                </div>
-                <span class="widget-cost" x-text="`${Alpine.store('activeSession')?.cost || 0} ₽`"></span>
-                <span class="material-icons widget-arrow">chevron_right</span>
-            </div>
-        </div>
-    </template>
 
     <footer class="footer">
         <div class="container">

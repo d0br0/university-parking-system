@@ -104,10 +104,11 @@
     }
 
     .stat-card {
-        background: var(--card-bg, #fff);
+        background: var(--bg-card);
         padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
         display: flex;
         align-items: center;
         gap: 1.25rem;
@@ -130,14 +131,14 @@
 
     .stat-icon span { font-size: 32px; }
 
-    .revenue { background: #e8f5e9; color: #2e7d32; }
-    .active { background: #e3f2fd; color: #1565c0; }
-    .today { background: #fff3e0; color: #ef6c00; }
+    .revenue { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+    .active { background: rgba(37, 99, 235, 0.1); color: var(--primary); }
+    .today { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
 
     .stat-info h3 {
         margin: 0;
         font-size: 0.9rem;
-        color: var(--text-muted, #666);
+        color: var(--text-light);
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
@@ -146,13 +147,15 @@
         margin: 0.25rem 0 0 0;
         font-size: 1.5rem;
         font-weight: 700;
+        color: var(--text);
     }
 
     .card {
-        background: var(--card-bg, #fff);
+        background: var(--bg-card);
         padding: 2rem;
-        border-radius: 16px;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-lg);
     }
 
     .qr-form {
@@ -167,15 +170,18 @@
         display: block;
         margin-bottom: 0.5rem;
         font-weight: 500;
+        color: var(--text);
     }
 
     .form-control {
         width: 100%;
         padding: 0.75rem 1rem;
-        border: 2px solid #eee;
-        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        border-radius: var(--radius-sm);
         font-size: 1rem;
-        min-height: 44px; /* Touch target */
+        min-height: 44px;
     }
 
     .btn-large {
@@ -192,7 +198,7 @@
     .qr-result-box {
         margin-top: 2rem;
         padding-top: 2rem;
-        border-top: 1px solid #eee;
+        border-top: 1px solid var(--border);
         text-align: center;
     }
 
@@ -201,11 +207,12 @@
         margin: 0 auto;
         padding: 1rem;
         background: white;
-        border-radius: 8px;
+        border-radius: var(--radius-sm);
     }
 
     .qr-details {
         margin-top: 1.5rem;
+        color: var(--text);
     }
 
     .link-box {
@@ -213,33 +220,17 @@
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        background: #f8f9fa;
+        background: var(--bg);
         padding: 0.5rem 1rem;
-        border-radius: 8px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
         margin-top: 0.5rem;
     }
 
     .link-box code {
         font-size: 0.9rem;
-        color: #d81b60;
+        color: var(--primary);
         word-break: break-all;
-    }
-
-    /* Темная тема через prefers-color-scheme */
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --card-bg: #1e1e1e;
-            --text-muted: #aaa;
-            --bg: #121212;
-            --text: #eee;
-        }
-        .stat-card, .card { background: #1e1e1e; }
-        .form-control { background: #2c2c2c; border-color: #333; color: #fff; }
-        .link-box { background: #2c2c2c; }
-        .qr-result-box { border-top-color: #333; }
-        .revenue { background: #1b2e1c; color: #81c784; }
-        .active { background: #1a237e33; color: #64b5f6; }
-        .today { background: #4e342e33; color: #ffb74d; }
     }
 
     @media (max-width: 600px) {
