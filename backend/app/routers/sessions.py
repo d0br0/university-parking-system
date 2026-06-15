@@ -82,8 +82,7 @@ async def start_session(
         zone_id=session_data.zone_id,
         entry_time=datetime.now(timezone.utc),
         exit_time=None,
-        status="pending",
-        cost=Decimal("0.00"),
+        status="pending"
     )
     db.add(new_session)
     db.commit()
@@ -148,9 +147,8 @@ async def end_session(
             )
         # Рассчитываем стоимость
         cost = calculate_cost(session.entry_time, session.exit_time, tariff)
-        session.cost = Decimal(str(cost))
-        logger.info(f"Сессия {session.id} пересчитана, стоимость {cost}")
-    # Для paid сессий стоимость уже установлена, оставляем как есть
+        logger.info(f"Сессия {session.id} завершена, рассчитанная стоимость {cost}")
+    # Для paid сессий стоимость уже была оплачена
 
     db.commit()
     db.refresh(session)
@@ -202,10 +200,24 @@ async def get_active_session(
     if session:
         # Получаем zone_name
         zone_name = None
+        current_cost = Decimal("0.00")
+        
         if session.zone_id:
             zone = db.query(ParkingZone).filter(ParkingZone.id == session.zone_id).first()
             if zone:
                 zone_name = zone.name
+                # Рассчитываем текущую стоимость
+                if session.status == "pending":
+                    tariff = zone.tariff or db.query(Tariff).first()
+                    if tariff:
+                        current_cost = Decimal(str(calculate_cost(session.entry_time, datetime.now(timezone.utc), tariff)))
+                else:
+                    # Для closed/paid сессий берем сумму успешных платежей
+                    total_paid = db.query(func.sum(models.Payment.amount)).filter(
+                        models.Payment.session_id == session.id,
+                        models.Payment.status == "completed"
+                    ).scalar() or Decimal("0.00")
+                    current_cost = total_paid
         
         # Создаём словарь с данными сессии + дополнительные поля для фронтенда
         session_data = {
@@ -219,9 +231,9 @@ async def get_active_session(
             "entry_time": session.entry_time,
             "exit_time": session.exit_time,
             "status": session.status.value if hasattr(session.status, 'value') else session.status,
-            "cost": session.cost,
+            "cost": current_cost,
             "started_at": session.entry_time,
-            "current_cost": session.cost,
+            "current_cost": current_cost,
         }
         return session_data
         
@@ -351,6 +363,12 @@ async def get_session_history(
         else:
             status_val = str(status_val)
 
+        # Расчёт стоимости (сумма успешных платежей)
+        total_paid = db.query(func.sum(models.Payment.amount)).filter(
+            models.Payment.session_id == session.id,
+            models.Payment.status == "completed"
+        ).scalar() or Decimal("0.00")
+
         # Подготавливаем данные для VehicleOut безопасно
         try:
             vehicle_data = {
@@ -372,7 +390,7 @@ async def get_session_history(
             entry_time=session.entry_time,
             exit_time=session.exit_time,
             status=status_val,
-            total_cost=Decimal(str(session.cost or "0.00")),
+            total_cost=session.cost,
             duration_minutes=duration_minutes,
             zone_name=session.zone.name if session.zone else None
         ))
@@ -411,101 +429,31 @@ async def get_session(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Сессия не принадлежит вам",
         )
-    return session
-
-
-@router.get(
-    "/history",
-    response_model=SessionHistoryListResponse,
-    responses={
-        401: {"model": Message, "description": "Требуется аутентификация"},
-    },
-)
-async def get_session_history(
-    page: int = Query(1, ge=1, description="Номер страницы"),
-    per_page: int = Query(10, ge=1, le=100, description="Элементов на странице"),
-    date_from: Optional[datetime] = Query(None, description="Фильтр: дата начала (ISO format)"),
-    date_to: Optional[datetime] = Query(None, description="Фильтр: дата окончания (ISO format)"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """
-    Получить историю завершённых сессий текущего пользователя с пагинацией.
-    """
-    # Базовый запрос для завершённых сессий пользователя
-    query = db.query(ParkingSession).filter(
-        ParkingSession.user_id == current_user.id,
-        ParkingSession.status.in_(["closed", "paid"])
-    )
     
-    # Применяем фильтры по дате
-    if date_from:
-        query = query.filter(ParkingSession.entry_time >= date_from)
-    if date_to:
-        query = query.filter(ParkingSession.entry_time <= date_to)
+    # Расчёт текущей стоимости для активных сессий
+    current_cost = session.cost
+    if session.status == "pending":
+        tariff = (session.zone.tariff if session.zone else None) or db.query(Tariff).first()
+        if tariff:
+            current_cost = Decimal(str(calculate_cost(session.entry_time, datetime.now(timezone.utc), tariff)))
     
-    # Считаем общее количество для пагинации
-    total_count = query.count()
-    
-    # Получаем сессии для текущей страницы (сортировка по времени входа, новые первые)
-    sessions = query.order_by(desc(ParkingSession.entry_time)).offset(
-        (page - 1) * per_page
-    ).limit(per_page).all()
-    
-    # Формируем ответ
-    session_items = []
-    for session in sessions:
-        # Используем связь vehicle из модели Session
-        vehicle = session.vehicle
-        if not vehicle:
-            logger.warning(f"Vehicle not found for session {session.id}")
-            continue
-
-        # Расчёт длительности
-        duration_minutes = 0
-        if session.exit_time and session.entry_time:
-            duration_minutes = int((session.exit_time - session.entry_time).total_seconds() / 60)
-        
-        # Конвертируем статус в строку
-        status_val = session.status
-        if hasattr(status_val, 'value'):
-            status_val = status_val.value
-        else:
-            status_val = str(status_val)
-
-        # Подготавливаем данные для VehicleOut безопасно
-        try:
-            vehicle_data = {
-                "id": vehicle.id,
-                "user_id": vehicle.user_id,
-                "license_plate": vehicle.license_plate,
-                "model": vehicle.model,
-                "color": vehicle.color,
-                "is_active": getattr(vehicle, 'is_active', True)
-            }
-            vehicle_out = VehicleOut(**vehicle_data)
-        except Exception as e:
-            logger.error(f"Error validating vehicle for session {session.id}: {e}")
-            continue
-
-        session_items.append(SessionHistoryItem(
-            id=session.id,
-            vehicle=vehicle_out,
-            entry_time=session.entry_time,
-            exit_time=session.exit_time,
-            status=status_val,
-            total_cost=Decimal(str(session.cost or "0.00")),
-            duration_minutes=duration_minutes,
-            zone_name=session.zone.name if session.zone else None
-        ))
-    
-    return SessionHistoryListResponse(
-        items=session_items,
-        total=int(total_count),
-        page=int(page),
-        per_page=int(per_page),
-        total_pages=int((total_count + per_page - 1) // per_page) if per_page > 0 else 0
-    )
+    # Подготовка данных
+    session_dict = {
+        "id": session.id,
+        "user_id": session.user_id,
+        "vehicle_id": session.vehicle_id,
+        "vehicle_plate": session.vehicle.license_plate if session.vehicle else None,
+        "vehicle_model": session.vehicle.model if session.vehicle else None,
+        "zone_id": session.zone_id,
+        "zone_name": session.zone.name if session.zone else None,
+        "entry_time": session.entry_time,
+        "exit_time": session.exit_time,
+        "status": session.status,
+        "cost": current_cost,
+        "started_at": session.entry_time,
+        "current_cost": current_cost
+    }
+    return session_dict
 
 
 @router.get(
@@ -554,6 +502,15 @@ async def get_session_receipt(
     else:
         status_val = str(status_val)
         
+    # Получаем время подтверждения платежа
+    paid_at = None
+    payment = db.query(models.Payment).filter(
+        models.Payment.session_id == session.id,
+        models.Payment.status == "completed"
+    ).order_by(desc(models.Payment.paid_at)).first()
+    if payment:
+        paid_at = payment.paid_at
+        
     return SessionReceiptResponse(
         session_id=session.id,
         vehicle_plate=session.vehicle.license_plate if session.vehicle else "Неизвестно",
@@ -563,7 +520,7 @@ async def get_session_receipt(
         duration_minutes=duration_minutes,
         hours_charged=hours_charged,
         hourly_rate=hourly_rate,
-        total_cost=session.cost or Decimal("0"),
-        paid_at=None,  # TODO: брать из payment
+        total_cost=session.cost,
+        paid_at=paid_at,
         status=status_val
     )

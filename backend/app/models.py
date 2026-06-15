@@ -74,7 +74,6 @@ class Tariff(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False, unique=True)
     price_per_hour = Column(Numeric(10, 2), nullable=False)
-    daily_cap = Column(Numeric(10, 2), nullable=False)
 
     def __repr__(self):
         return f"<Tariff(id={self.id}, name={self.name}, price={self.price_per_hour})>"
@@ -95,7 +94,6 @@ class Session(Base):
         default="pending",
         nullable=False,
     )
-    cost = Column(Numeric(10, 2), default=Decimal("0.00"), nullable=False)
 
     # relationships
     user = relationship("User", back_populates="sessions", lazy="select")
@@ -107,6 +105,19 @@ class Session(Base):
     payments = relationship(
         "Payment", back_populates="session", lazy="select", cascade="all, delete-orphan"
     )
+
+    @property
+    def cost(self):
+        """Рассчитываемая стоимость сессии на основе платежей или тарифа."""
+        # Если сессия оплачена или закрыта, берем сумму платежей
+        if self.status in ["paid", "closed"]:
+            total_paid = sum(p.amount for p in self.payments if p.status == "completed")
+            return total_paid
+        
+        # Если сессия активна, можно было бы рассчитывать динамически, 
+        # но для этого нужен доступ к тарифу и текущему времени.
+        # В модели это делать неудобно без передачи параметров.
+        return Decimal("0.00")
 
     @property
     def vehicle_plate(self):

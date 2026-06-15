@@ -139,12 +139,11 @@ def confirm_payment(payment_id: UUID, db: Session, user_id: UUID) -> dict:
     db.add(payment)
 
     # Обновляем сессию
-    session.cost = Decimal(str(new_cost))
     session.status = "paid"
     db.add(session)
 
     db.commit()
-    logger.info(f"Платёж {payment_id} подтверждён. Сессия {session.id} переведена в paid со стоимостью {new_cost}")
+    logger.info(f"Платёж {payment_id} подтверждён. Сессия {session.id} переведена в paid")
 
     return {
         "success": True,

@@ -22,7 +22,7 @@ def calculate_cost(entry_time: datetime, exit_time: datetime, tariff: Tariff) ->
     - Первые 15 минут бесплатно.
     - После 15 минут оплата почасово с округлением вверх до целого часа.
     - Пример: 16 минут -> 1 час, 75 минут -> 1 час, 76 минут -> 2 часа.
-    - Стоимость = min(chargeable_hours * tariff.price_per_hour, tariff.daily_cap)
+    - Стоимость = chargeable_hours * tariff.price_per_hour
     - Округление результата до 2 знаков после запятой.
     """
     # Приводим оба времени к UTC aware для корректного сравнения

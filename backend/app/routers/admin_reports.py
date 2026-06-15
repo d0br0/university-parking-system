@@ -74,26 +74,26 @@ def get_admin_overview(
     ).count()
     
     # Выручка за сегодня
-    today_revenue = db.query(func.sum(models.Session.cost)).filter(
+    today_revenue = db.query(func.sum(models.Payment.amount)).filter(
         and_(
-            models.Session.entry_time >= today_start,
-            models.Session.status.in_(["paid", "closed"])
+            models.Payment.paid_at >= today_start,
+            models.Payment.status == "completed"
         )
     ).scalar() or 0
     
     # Выручка за неделю
-    week_revenue = db.query(func.sum(models.Session.cost)).filter(
+    week_revenue = db.query(func.sum(models.Payment.amount)).filter(
         and_(
-            models.Session.entry_time >= week_ago,
-            models.Session.status.in_(["paid", "closed"])
+            models.Payment.paid_at >= week_ago,
+            models.Payment.status == "completed"
         )
     ).scalar() or 0
     
     # Выручка за месяц
-    month_revenue = db.query(func.sum(models.Session.cost)).filter(
+    month_revenue = db.query(func.sum(models.Payment.amount)).filter(
         and_(
-            models.Session.entry_time >= month_ago,
-            models.Session.status.in_(["paid", "closed"])
+            models.Payment.paid_at >= month_ago,
+            models.Payment.status == "completed"
         )
     ).scalar() or 0
     

@@ -19,7 +19,8 @@ from reportlab.lib.utils import ImageReader
 from app.config import settings
 from app.auth import get_current_user, require_admin
 from app.database import get_db
-from app.models import Session as ParkingSession, Payment, User
+from app.models import Session as ParkingSession, Payment, User, Tariff
+from app.schemas import TariffOut, TariffUpdate
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -165,3 +166,31 @@ async def download_qr_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=QR_Zone_{zone}.pdf"}
     )
+
+@router.get("/tariffs", response_model=list[TariffOut])
+async def get_tariffs(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """Получение списка всех тарифов."""
+    return db.query(Tariff).all()
+
+@router.patch("/tariffs/{tariff_id}", response_model=TariffOut)
+async def update_tariff(
+    tariff_id: str,
+    tariff_data: TariffUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin)
+):
+    """Обновление существующего тарифа."""
+    tariff = db.query(Tariff).filter(Tariff.id == tariff_id).first()
+    if not tariff:
+        raise HTTPException(status_code=404, detail="Тариф не найден")
+    
+    update_data = tariff_data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(tariff, key, value)
+    
+    db.commit()
+    db.refresh(tariff)
+    return tariff

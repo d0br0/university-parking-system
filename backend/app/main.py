@@ -170,9 +170,9 @@ async def startup_event():
 
     # Создание таблиц (если не существуют)
     try:
-        # Base.metadata.drop_all(bind=engine) # Удалено: таблицы теперь стабильны
+        Base.metadata.drop_all(bind=engine) # Временно включено для применения изменений схемы (удаление daily_cap)
         Base.metadata.create_all(bind=engine)
-        logger.info("✅ Таблицы БД созданы/проверены")
+        logger.info("✅ Таблицы БД пересозданы")
     except Exception as e:
         logger.error(f"❌ Ошибка при создании таблиц: {e}")
         raise
@@ -195,7 +195,6 @@ async def startup_event():
             standard_tariff = Tariff(
                 name="standard",
                 price_per_hour=Decimal("150.00"),
-                daily_cap=Decimal("1200.00"),
             )
             db.add(standard_tariff)
             db.commit()

@@ -72,13 +72,17 @@ class VehicleOut(VehicleBase):
 class TariffBase(BaseModel):
     name: str = Field(..., max_length=100)
     price_per_hour: Decimal = Field(..., ge=0)
-    daily_cap: Decimal = Field(..., ge=0)
 
 
 class TariffOut(TariffBase):
     id: UUID
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TariffUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=100)
+    price_per_hour: Optional[Decimal] = Field(None, ge=0)
 
 
 # ---------- Session ----------
