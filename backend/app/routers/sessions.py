@@ -7,11 +7,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_
+from sqlalchemy import desc, and_, func
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.models import User, Vehicle, Session as ParkingSession, Tariff, ParkingZone
+from app.models import User, Vehicle, Session as ParkingSession, Tariff, ParkingZone, Payment
 from app.schemas import (
     SessionCreate, SessionOut, Message, 
     SessionHistoryListResponse, SessionHistoryItem,
@@ -213,9 +213,9 @@ async def get_active_session(
                         current_cost = Decimal(str(calculate_cost(session.entry_time, datetime.now(timezone.utc), tariff)))
                 else:
                     # Для closed/paid сессий берем сумму успешных платежей
-                    total_paid = db.query(func.sum(models.Payment.amount)).filter(
-                        models.Payment.session_id == session.id,
-                        models.Payment.status == "completed"
+                    total_paid = db.query(func.sum(Payment.amount)).filter(
+                        Payment.session_id == session.id,
+                        Payment.status == "completed"
                     ).scalar() or Decimal("0.00")
                     current_cost = total_paid
         
@@ -363,12 +363,6 @@ async def get_session_history(
         else:
             status_val = str(status_val)
 
-        # Расчёт стоимости (сумма успешных платежей)
-        total_paid = db.query(func.sum(models.Payment.amount)).filter(
-            models.Payment.session_id == session.id,
-            models.Payment.status == "completed"
-        ).scalar() or Decimal("0.00")
-
         # Подготавливаем данные для VehicleOut безопасно
         try:
             vehicle_data = {
@@ -504,10 +498,10 @@ async def get_session_receipt(
         
     # Получаем время подтверждения платежа
     paid_at = None
-    payment = db.query(models.Payment).filter(
-        models.Payment.session_id == session.id,
-        models.Payment.status == "completed"
-    ).order_by(desc(models.Payment.paid_at)).first()
+    payment = db.query(Payment).filter(
+        Payment.session_id == session.id,
+        Payment.status == "completed"
+    ).order_by(desc(Payment.paid_at)).first()
     if payment:
         paid_at = payment.paid_at
         
